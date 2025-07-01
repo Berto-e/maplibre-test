@@ -98,6 +98,9 @@ const App = () => {
         e.preventDefault();
         if (selectedIndex >= 0) {
           selectSuggestion(suggestions[selectedIndex]);
+          setSelectedElement?.(suggestions[selectedIndex]);
+          setShowDropdown(false);
+          setSelectedIndex(-1);
         }
         break;
       case "Escape":
