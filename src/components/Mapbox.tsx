@@ -21,7 +21,8 @@ const Mapbox = () => {
   useEffect(() => {
     const map = new maplibregl.Map({
       container: mapContainer.current!,
-      style: "http://localhost:8080/styles/andalucia_style/style.json",
+      style:
+        "https://api.maptiler.com/maps/streets-v2/style.json?key=W8q1pSL8KdnaMEh4wtdB",
       center: [-6.25836950353086, 36.60512751654313],
       zoom: 12,
     });
