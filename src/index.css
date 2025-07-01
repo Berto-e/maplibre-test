@@ -4,13 +4,10 @@ body,
   margin: 0;
   padding: 0;
   height: 100%;
-  font-family: Outfit, Work Sans, sans-serif;
+  
 }
 
 body {
   background-color: #fcfcfc;
 }
 
-button {
-  font-family: Outfit, Work Sans, sans-serif;
-}

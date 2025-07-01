@@ -1,0 +1,151 @@
+/* Dashboard.module.css */
+
+.dashboard {
+  display: flex;
+  height: 100vh;
+  background-color: #f5f7fa;
+  font-family: Inter, Outfit, Work Sans, sans-serif;
+}
+
+.sidebar {
+  width: 60px;
+  background-color: #eef1f5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+  border-right: 1px solid #ccc;
+}
+
+.logo {
+  width: 34px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.navItem {
+  font-size: 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.navItem:hover,
+.active {
+  opacity: 1;
+}
+
+.user {
+  width: 32px;
+  height: 32px;
+  background-color: #9FDFFF;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.main {
+  flex: 1;
+  padding: 20px 30px;
+  overflow-y: auto;
+  
+}
+
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.title span {
+  font-weight: normal;
+  color: #999;
+}
+
+.mapContainer {
+  height: 450px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 30px;
+}
+
+.indicators h2 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.indicatorsHeader {
+
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.card {
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 15px;
+  font-size: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.card strong {
+  font-size: 40px;
+  display: block;
+  margin-top: 5px;
+}
+
+.activeCard {
+  background-color: #1167B1;
+  color: white;
+  font-weight: bold;
+}
+
+.cardTitle {
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.cardValue {
+  font-size: 40px;
+}
+
+.filters {
+  display: flex;
+  gap: 10px;
+}
+
+.filters button {
+  padding: 5px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.activeFilter {
+  background-color: #e6f0ff;
+  border-color: #0060d0;
+  color: #0060d0;
+  font-weight: bold;
+}
