@@ -158,7 +158,7 @@ const Dashboard = () => {
           <div style={{ position: "relative" }}>
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search Point of Interest..."
               value={searchQuery}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
@@ -170,6 +170,7 @@ const Dashboard = () => {
                 width: "160px",
                 borderRadius: showDropdown ? "5px 5px 0 0" : "5px",
                 border: "1px solid #000000",
+                fontFamily: "Inter,Outfit,Helvetica,Arial,sans-serif",
                 padding: "6px 10px",
               }}
             />
@@ -178,15 +179,17 @@ const Dashboard = () => {
           <button
             onClick={onSubmit}
             style={{
+              fontSize: "14px",
+              fontFamily: "Inter,Outfit,Helvetica,Arial,sans-serif",
               padding: "6px 16px",
-              borderRadius: "5px",
+              borderRadius: "3px",
               border: "none",
               background: "#1976d2",
               color: "#fff",
               cursor: "pointer",
             }}
           >
-            Buscar
+            Search
           </button>
         </div>
 

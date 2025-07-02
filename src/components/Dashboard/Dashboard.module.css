@@ -44,7 +44,7 @@
 .user {
   width: 32px;
   height: 32px;
-  background-color: #9FDFFF;
+  background-color: #9fdfff;
   color: white;
   border-radius: 50%;
   display: flex;
@@ -57,7 +57,6 @@
   flex: 1;
   padding: 20px 30px;
   overflow-y: auto;
-  
 }
 
 .title {
@@ -85,8 +84,6 @@
 }
 
 .indicatorsHeader {
-
-
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -115,7 +112,7 @@
 }
 
 .activeCard {
-  background-color: #1167B1;
+  background-color: #1167b1;
   color: white;
   font-weight: bold;
 }
