@@ -27,6 +27,8 @@ const Mapbox = () => {
       zoom: 12,
     });
 
+    map.addControl(new maplibregl.FullscreenControl());
+
     mapRef.current = map;
 
     // Add sources and layers when the map is loaded
