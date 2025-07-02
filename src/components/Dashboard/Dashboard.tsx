@@ -158,7 +158,7 @@ const Dashboard = () => {
           <div style={{ position: "relative" }}>
             <input
               type="text"
-              placeholder="Search Point of Interest..."
+              placeholder="Buscar punto de interés..."
               value={searchQuery}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
@@ -189,7 +189,7 @@ const Dashboard = () => {
               cursor: "pointer",
             }}
           >
-            Search
+            Buscar
           </button>
         </div>
 
