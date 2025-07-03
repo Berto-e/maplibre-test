@@ -478,7 +478,7 @@ const MapBox = () => {
     map.setLayoutProperty('points_yellow', 'visibility', filters.yellow ? 'visible' : 'none');
     map.setLayoutProperty('numbers_yellow', 'visibility', filters.yellow ? 'visible' : 'none');
     
-    console.log('Filtros aplicados:', filters);
+    
   }, [filters]);
 
  
