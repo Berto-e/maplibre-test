@@ -1,0 +1,182 @@
+[
+  {
+    "serialNumber": "SN-0001",
+    "station": "Murcia",
+    "installationDate": "2023-01-10T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.1307, 37.9870],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0002",
+    "station": "Cartagena",
+    "installationDate": "2023-02-15T00:00:00Z",
+    "model": "T300",
+    "brand": "CleanAir",
+    "gps": [-0.9857, 37.6051],
+    "status": "red"
+  },
+  {
+    "serialNumber": "SN-0003",
+    "station": "Lorca",
+    "installationDate": "2023-03-20T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-1.7011, 37.6719],
+    "status": "yellow"
+  },
+  {
+    "serialNumber": "SN-0004",
+    "station": "Molina de Segura",
+    "installationDate": "2023-04-05T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.2075, 38.0547],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0005",
+    "station": "Alcantarilla",
+    "installationDate": "2023-04-11T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-1.2154, 37.9722],
+    "status": "yellow"
+  },
+  {
+    "serialNumber": "SN-0006",
+    "station": "Cieza",
+    "installationDate": "2023-05-01T00:00:00Z",
+    "model": "T300",
+    "brand": "CleanAir",
+    "gps": [-1.4177, 38.2383],
+    "status": "red"
+  },
+  {
+    "serialNumber": "SN-0007",
+    "station": "Yecla",
+    "installationDate": "2023-06-12T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-1.1151, 38.6138],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0008",
+    "station": "Jumilla",
+    "installationDate": "2023-07-01T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.3253, 38.4794],
+    "status": "yellow"
+  },
+  {
+    "serialNumber": "SN-0009",
+    "station": "Águilas",
+    "installationDate": "2023-07-18T00:00:00Z",
+    "model": "T300",
+    "brand": "CleanAir",
+    "gps": [-1.5810, 37.4063],
+    "status": "red"
+  },
+  {
+    "serialNumber": "SN-0010",
+    "station": "Mazarrón",
+    "installationDate": "2023-08-03T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.3080, 37.5991],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0011",
+    "station": "San Javier",
+    "installationDate": "2023-08-14T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-0.8419, 37.8065],
+    "status": "yellow"
+  },
+  {
+    "serialNumber": "SN-0012",
+    "station": "Torre-Pacheco",
+    "installationDate": "2023-09-01T00:00:00Z",
+    "model": "T300",
+    "brand": "CleanAir",
+    "gps": [-0.9615, 37.7441],
+    "status": "red"
+  },
+  {
+    "serialNumber": "SN-0013",
+    "station": "Totana",
+    "installationDate": "2023-09-22T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.5025, 37.7682],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0014",
+    "station": "Caravaca de la Cruz",
+    "installationDate": "2023-10-06T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-1.8659, 38.1050],
+    "status": "yellow"
+  },
+  {
+    "serialNumber": "SN-0015",
+    "station": "La Unión",
+    "installationDate": "2023-10-20T00:00:00Z",
+    "model": "T300",
+    "brand": "CleanAir",
+    "gps": [-0.8789, 37.6198],
+    "status": "red"
+  },
+  {
+    "serialNumber": "SN-0016",
+    "station": "Archena",
+    "installationDate": "2023-11-05T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.3017, 38.1211],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0017",
+    "station": "Cehegín",
+    "installationDate": "2023-11-22T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-1.7973, 38.0916],
+    "status": "yellow"
+  },
+  {
+    "serialNumber": "SN-0018",
+    "station": "Alhama de Murcia",
+    "installationDate": "2023-12-01T00:00:00Z",
+    "model": "T300",
+    "brand": "CleanAir",
+    "gps": [-1.4252, 37.8494],
+    "status": "red"
+  },
+  {
+    "serialNumber": "SN-0019",
+    "station": "Las Torres de Cotillas",
+    "installationDate": "2023-12-18T00:00:00Z",
+    "model": "X100",
+    "brand": "AirSense",
+    "gps": [-1.2542, 38.0453],
+    "status": "green"
+  },
+  {
+    "serialNumber": "SN-0020",
+    "station": "Mula",
+    "installationDate": "2024-01-10T00:00:00Z",
+    "model": "Z200",
+    "brand": "EcoTrack",
+    "gps": [-1.4862, 38.0391],
+    "status": "yellow"
+  }
+]
