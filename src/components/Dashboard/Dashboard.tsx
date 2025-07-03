@@ -12,7 +12,7 @@ const Dashboard = () => {
   const handleFilterChange = (color: "green" | "yellow" | "red") => {
     setFilters((prev) => ({
       ...prev,
-      [color]: !prev[color],
+      [color]: !prev[color]
     }));
   };
 
@@ -87,6 +87,8 @@ const Dashboard = () => {
                 </label>
               </div>
             </div>
+
+            
           </div>
         </div>
 
