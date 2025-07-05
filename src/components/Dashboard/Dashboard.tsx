@@ -1,20 +1,75 @@
 import styles from "./Dashboard.module.css";
 import MapBox from "../Mapbox/Mapbox";
 import { useMapContext } from "../../contexts/MapContext";
+import { useCallback, useEffect, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 const Dashboard = () => {
   const { mapElements, filters, setFilters } = useMapContext();
   const greenPoints = mapElements.filter((p) => p.status === "green").length;
   const yellowPoints = mapElements.filter((p) => p.status === "yellow").length;
   const redPoints = mapElements.filter((p) => p.status === "red").length;
+  const [showPopup, setShowPopup] = useState(false);
+  const [selectedProperties, setSelectedProperties] = useState<any>(null);
+  const miniMapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
 
   // Función para manejar cambios en checkboxes
   const handleFilterChange = (color: "green" | "yellow" | "red") => {
     setFilters((prev) => ({
       ...prev,
-      [color]: !prev[color]
+      [color]: !prev[color],
     }));
   };
+
+  const handlePointClick = useCallback((properties:any) => {
+    setSelectedProperties(properties);
+    setShowPopup(true);
+  }, []);
+
+  // Inicializar mini mapa cuando el popup se muestra
+  useEffect(() => {
+    if (
+      showPopup &&
+      selectedProperties?.gps &&
+      Array.isArray(selectedProperties.gps) &&
+      miniMapRef.current
+    ) {
+      // Limpiar el mapa anterior si existe
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+      }
+
+      // Inicializar nuevo mapa
+      const miniMap = new maplibregl.Map({
+        container: miniMapRef.current,
+        style: "https://api.maptiler.com/maps/streets/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+        center: [selectedProperties.gps[0], selectedProperties.gps[1]],
+        zoom: 15,
+        interactive: false, // No interactivo
+        attributionControl: false, // Sin atribuciones
+      });
+
+      // Añadir marcador
+      new maplibregl.Marker({
+        color: "#000c95"
+      })
+        .setLngLat([selectedProperties.gps[0], selectedProperties.gps[1]])
+        .addTo(miniMap);
+
+      // Guardar referencia al mapa
+      mapInstanceRef.current = miniMap;
+
+      // Limpiar el mapa cuando se desmonte
+      return () => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+      };
+    }
+  }, [showPopup, selectedProperties]);
 
   return (
     <div className={styles.dashboard}>
@@ -41,7 +96,7 @@ const Dashboard = () => {
         {/*Mapbox Container with Filters */}
         <div className={styles.mapSection}>
           <div className={styles.mapContainer}>
-            <MapBox />
+            <MapBox onPointClick={handlePointClick} />
           </div>
 
           {/* Filters Panel */}
@@ -87,8 +142,6 @@ const Dashboard = () => {
                 </label>
               </div>
             </div>
-
-            
           </div>
         </div>
 
@@ -136,6 +189,113 @@ const Dashboard = () => {
           </div>
         </section>
       </main>
+
+      {/* Station Info Popup */}
+      {showPopup ? (
+        <div className={styles.stationPopup}>
+          <div 
+            className={styles.stationPopupOverlay} 
+            onClick={() => setShowPopup(false)}
+          >
+            <div 
+              className={styles.stationPopupContent} 
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className={styles.stationPopupHeader}>
+                <h2 className={styles.stationPopupTitle}>
+                  Detalle de la estación
+                </h2>
+                <button
+                  className={styles.stationPopupClose}
+                  onClick={() => {
+                    setShowPopup(false);
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className={styles.stationPopupMainContainer}>
+                <div className={styles.stationPopupMapContainer}>
+                  <h3 className={styles.stationPopupMapContainerTitle}>
+                    Punto de la estación:
+                  </h3>
+                  <span className={styles.stationPopupMapContainerSubTitle}>
+                    {selectedProperties.station!}
+                  </span>
+                  <div className={styles.stationPopupMapContainerMap} ref={miniMapRef}>
+                    {!selectedProperties?.gps || !Array.isArray(selectedProperties.gps) && (
+                      <span>Sin ubicación</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className={styles.stationPopupInfoContainer}>
+                  <h3 className={styles.stationPopupInfoTitle}>
+                    Información general:
+                  </h3>
+
+                  {/* Fila 1 */}
+                  <div className={styles.stationPopupInfoGrid}>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Código del contador:
+                      </span>{" "}
+                      {selectedProperties.serialNumber!}
+                    </div>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Estación:
+                      </span>{" "}
+                      {selectedProperties.station!}
+                    </div>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Póliza:
+                      </span>{" "}
+                      171469
+                    </div>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Abonado:
+                      </span>{" "}
+                      GRIFOLL SERRA, ANNA M
+                    </div>
+                  </div>
+
+                  {/* Fila 2 */}
+                  <div className={styles.stationPopupInfoGrid}>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Tipo de uso:
+                      </span>{" "}
+                      DOMESTICA
+                    </div>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Fecha de instalación:
+                      </span>{" "}
+                      {selectedProperties.installationDate!}
+                    </div>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Marca:
+                      </span>{" "}
+                      {selectedProperties.brand!}
+                    </div>
+                    <div className={styles.stationPopupInfoItem}>
+                      <span className={styles.stationPopupInfoLabel}>
+                        Modelo:
+                      </span>{" "}
+                      {selectedProperties.model!}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

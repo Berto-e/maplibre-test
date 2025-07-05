@@ -4,19 +4,24 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { mapPoint } from "./MapPoint.types";
 import pointsData from "./points.json";
 import { useMapContext } from "../../contexts/MapContext";
-const MapBox = () => {
+import { memo } from "react";
+type MapBoxProps = {
+  onPointClick?: (properties: any) => void;
+};
+
+const MapBox = ({ onPointClick }: MapBoxProps) => {
   /*----Functions---*/
   const extract_points_from_json = (): mapPoint[] => {
     return pointsData as mapPoint[];
   };
 
-  const {filters} = useMapContext();
+  const { filters } = useMapContext();
 
   /* --------- Map Initialization --------- */
   const mapContainer = useRef(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const points = extract_points_from_json();
-  
+
   useEffect(() => {
     const map = new maplibregl.Map({
       container: mapContainer.current!,
@@ -421,47 +426,23 @@ const MapBox = () => {
           map.getCanvas().style.cursor = "";
         });
 
-        // Agregar popup al hacer click
+        // Al hacer click, buscar el punto original y pasar todas las propiedades (incluyendo gps)
         map.on("click", layerId, (e) => {
           const feature = e.features![0];
-          const coordinates = (feature.geometry as any).coordinates.slice();
           const properties = feature.properties;
-
-          new maplibregl.Popup()
-            .setLngLat(coordinates as [number, number])
-            .setHTML(
-              `<div style="padding: 10px;">
-                <h3 style="margin: 0 0 10px 0; color: #333;">${
-                  properties.station
-                }</h3>
-                <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: ${
-                  properties.status === "green"
-                    ? "#2ECC71"
-                    : properties.status === "red"
-                    ? "#E74C3C"
-                    : "#F1C40F"
-                }; font-weight: bold;">${properties.status.toUpperCase()}</span></p>
-                <p style="margin: 5px 0;"><strong>Modelo:</strong> ${
-                  properties.model
-                }</p>
-                <p style="margin: 5px 0;"><strong>Marca:</strong> ${
-                  properties.brand
-                }</p>
-                <p style="margin: 5px 0;"><strong>Serie:</strong> ${
-                  properties.serialNumber
-                }</p>
-                <p style="margin: 5px 0;"><strong>Instalación:</strong> ${new Date(
-                  properties.installationDate
-                ).toLocaleDateString()}</p>
-              </div>`
-            )
-            .addTo(map);
+          // Buscar el punto original por serialNumber
+          const originalPoint = points.find(
+            (p) => p.serialNumber === properties.serialNumber
+          );
+          if (onPointClick && originalPoint) {
+            onPointClick(originalPoint);
+          }
         });
       });
     });
 
     return () => map.remove();
-  }, []);
+  }, [onPointClick]);
 
   // UseEffect para manejar los filtros
   useEffect(() => {
@@ -469,21 +450,41 @@ const MapBox = () => {
     if (!map || !map.isStyleLoaded()) return;
 
     // Actualizar visibilidad de capas según filtros
-    map.setLayoutProperty('points_green', 'visibility', filters.green ? 'visible' : 'none');
-    map.setLayoutProperty('numbers_green', 'visibility', filters.green ? 'visible' : 'none');
-    
-    map.setLayoutProperty('points_red', 'visibility', filters.red ? 'visible' : 'none');
-    map.setLayoutProperty('numbers_red', 'visibility', filters.red ? 'visible' : 'none');
-    
-    map.setLayoutProperty('points_yellow', 'visibility', filters.yellow ? 'visible' : 'none');
-    map.setLayoutProperty('numbers_yellow', 'visibility', filters.yellow ? 'visible' : 'none');
-    
-    
-  }, [filters]);
+    map.setLayoutProperty(
+      "points_green",
+      "visibility",
+      filters.green ? "visible" : "none"
+    );
+    map.setLayoutProperty(
+      "numbers_green",
+      "visibility",
+      filters.green ? "visible" : "none"
+    );
 
- 
+    map.setLayoutProperty(
+      "points_red",
+      "visibility",
+      filters.red ? "visible" : "none"
+    );
+    map.setLayoutProperty(
+      "numbers_red",
+      "visibility",
+      filters.red ? "visible" : "none"
+    );
+
+    map.setLayoutProperty(
+      "points_yellow",
+      "visibility",
+      filters.yellow ? "visible" : "none"
+    );
+    map.setLayoutProperty(
+      "numbers_yellow",
+      "visibility",
+      filters.yellow ? "visible" : "none"
+    );
+  }, [filters]);
 
   return <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />;
 };
 
-export default MapBox;
+export default memo(MapBox);
