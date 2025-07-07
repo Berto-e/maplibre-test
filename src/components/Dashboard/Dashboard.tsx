@@ -2,7 +2,7 @@ import styles from "./Dashboard.module.css";
 import { useMapContext } from "../../contexts/MapContext";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import MapboxV2 from "../Mapbox/MapboxV2";
+import MapboxV2 from "../Mapbox/Mapbox";
 import pointsData from "../Mapbox/points.json";
 import type { mapPoint } from "../Mapbox/MapPoint.types";
 
