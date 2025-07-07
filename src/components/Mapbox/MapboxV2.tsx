@@ -1,9 +1,45 @@
+////////////////////////////////////////////////////////////////////////////////
+// 🗺️ MAPBOX V2 COMPONENT - MAPLIBRE REACT INTEGRATION
+////////////////////////////////////////////////////////////////////////////////
+//
+// Description : A flexible MapLibre-based React component supporting both static
+//               and interactive map modes with customizable point rendering
+//
+// Features    : • Static map mode with single marker display
+//               • Interactive map with multi-status point layers
+//               • Zoom-responsive point sizing and number overlays
+//               • Filter integration for layer visibility control
+//               • Built-in search functionality for interactive maps
+//               • Memoized for performance optimization
+//
+// Usage       : <MapBoxV2
+//                 staticMap={false}
+//                 mapPoints={pointsArray}
+//                 onPointClick={handlePointClick}
+//                 center={[longitude, latitude]}
+//                 initialZoom={12}
+//               />
+//
+// Dependencies: • maplibre-gl (map rendering engine)
+//               • React (hooks: useEffect, useRef, memo)
+//               • MapContext (filter state management)
+//
+// Author      : Alberto Álvarez González
+// Last Update : 2025
+//
+////////////////////////////////////////////////////////////////////////////////
+
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { mapPoint } from "./MapPoint.types";
 import { useMapContext } from "../../contexts/MapContext";
 import { memo } from "react";
+
+////////////////////////////////////////////////////////////////////////////////
+// 📌 SECTION: Component Types & Props
+////////////////////////////////////////////////////////////////////////////////
+
 type MapBoxProps = {
   onPointClick?: (properties: any) => void;
   mapPoints: mapPoint[];
@@ -13,6 +49,10 @@ type MapBoxProps = {
   center?: [number, number];
 };
 
+////////////////////////////////////////////////////////////////////////////////
+// 📌 SECTION: MapBox Component
+////////////////////////////////////////////////////////////////////////////////
+
 const MapBoxV2 = ({
   onPointClick,
   mapPoints,
@@ -20,46 +60,75 @@ const MapBoxV2 = ({
   staticMap,
   center,
 }: MapBoxProps) => {
-  /*----Functions---*/
-
   const { filters } = useMapContext();
 
-  /* --------- Map Initialization --------- */
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: State & Refs
+  ////////////////////////////////////////////////////////////////////////////////
+
   const mapContainer = useRef(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const points = mapPoints || [];
 
-  // Función para crear el mapa estático
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Static Map Utilities
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: createStaticMap                                               */
+  /* -------------------------------------------------------------------------- */
+  // Description : Creates a non-interactive static map with a single marker
+  // Parameters  :
+  //    - Uses component props: center, initialZoom, points
+  // Returns     : void (modifies mapRef.current)
+  // Usage       : Called when staticMap prop is true
+
   const createStaticMap = () => {
+    // ─── 1️⃣ Validation: Ensure points exist ─────────────────────────────────
     if (!points.length) return;
 
+    // ─── 2️⃣ Determine map center coordinates ─────────────────────────────────
     const firstPoint = points[0];
-    // Usar center si está disponible, sino usar el primer punto
+    // Use center if available, otherwise use the first point
     const mapCenter = center || [firstPoint.gps[0], firstPoint.gps[1]];
 
+    // ─── 3️⃣ Initialize static map instance ──────────────────────────────────
     const map = new maplibregl.Map({
       container: mapContainer.current!,
       style:
         "https://api.maptiler.com/maps/streets/style.json?key=W8q1pSL8KdnaMEh4wtdB",
       center: mapCenter,
       zoom: initialZoom || 15,
-      interactive: false, // No interactivo
-      attributionControl: false, // Sin atribuciones
+      interactive: false, // Disable user interactions
+      attributionControl: false, // Hide attribution controls
     });
 
     mapRef.current = map;
 
-    // Añadir marcador
+    // ─── 4️⃣ Add location marker ─────────────────────────────────────────────
     new maplibregl.Marker({
-      color: "var(--primary-blue)", // Usar color primario del tema
+      color: "var(--primary-blue)",
     })
       .setLngLat(mapCenter)
       .addTo(map);
   };
 
-  // Función para agregar capas de puntos al mapa interactivo
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Interactive Map Layer Management
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: addPointLayers                                               */
+  /* -------------------------------------------------------------------------- */
+  // Description : Adds colored circle layers for different point statuses
+  // Parameters  :
+  //    - map: maplibregl.Map → The map instance to add layers to
+  // Returns     : void (modifies map by adding layers)
+  // Usage       : addPointLayers(mapInstance)
+  // Notes       : Creates 3 layers: green, red, yellow with status-based filtering
+
   const addPointLayers = (map: maplibregl.Map) => {
-    // Capa para puntos GREEN
+    // ─── 1️⃣ Layer: GREEN status points ──────────────────────────────────────
     map.addLayer({
       id: "points_green",
       type: "circle",
@@ -69,6 +138,7 @@ const MapBoxV2 = ({
         "circle-radius": [
           "interpolate",
           ["linear"],
+          // Zoom levels to make zooming more gradual
           ["zoom"],
           5,
           0,
@@ -102,8 +172,8 @@ const MapBoxV2 = ({
           18,
           1,
         ],
-        "circle-color": "#289178", // Verde
-        "circle-stroke-color": "#ffffff",
+        "circle-color": "#289178", // Green color
+        "circle-stroke-color": "#ffffff", // White border
         "circle-stroke-width": [
           "interpolate",
           ["linear"],
@@ -124,7 +194,7 @@ const MapBoxV2 = ({
       },
     });
 
-    // Capa para puntos RED
+    // ─── 2️⃣ Layer: RED status points ────────────────────────────────────────
     map.addLayer({
       id: "points_red",
       type: "circle",
@@ -167,8 +237,8 @@ const MapBoxV2 = ({
           18,
           1,
         ],
-        "circle-color": "#B4202A", // Rojo
-        "circle-stroke-color": "#ffffff",
+        "circle-color": "#B4202A", // Red color
+        "circle-stroke-color": "#ffffff", // White border
         "circle-stroke-width": [
           "interpolate",
           ["linear"],
@@ -189,7 +259,7 @@ const MapBoxV2 = ({
       },
     });
 
-    // Capa para puntos YELLOW
+    // ─── 3️⃣ Layer: YELLOW status points ─────────────────────────────────────
     map.addLayer({
       id: "points_yellow",
       type: "circle",
@@ -232,8 +302,8 @@ const MapBoxV2 = ({
           18,
           1,
         ],
-        "circle-color": "#C67605", // Amarillo
-        "circle-stroke-color": "#ffffff",
+        "circle-color": "#C67605", // Yellow/Orange color
+        "circle-stroke-color": "#ffffff", // White border
         "circle-stroke-width": [
           "interpolate",
           ["linear"],
@@ -255,16 +325,25 @@ const MapBoxV2 = ({
     });
   };
 
-  // Función para agregar capas de números al mapa interactivo
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: addNumberLayers                                              */
+  /* -------------------------------------------------------------------------- */
+  // Description : Adds text symbol layers displaying numbers on map points
+  // Parameters  :
+  //    - map: maplibregl.Map → The map instance to add text layers to
+  // Returns     : void (modifies map by adding text symbol layers)
+  // Usage       : addNumberLayers(mapInstance)
+  // Notes       : Numbers are displayed with zoom-responsive sizing and opacity
+
   const addNumberLayers = (map: maplibregl.Map) => {
-    // Capa de números para puntos GREEN
+    // ─── 1️⃣ Number layer: GREEN points ──────────────────────────────────────
     map.addLayer({
       id: "numbers_green",
       type: "symbol",
       source: "points",
       filter: ["==", ["get", "status"], "green"],
       layout: {
-        "text-field": ["get", "randomNumber"],
+        "text-field": ["get", "randomNumber"], // Display random number property
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
         "text-size": [
           "interpolate",
@@ -291,7 +370,7 @@ const MapBoxV2 = ({
         "text-justify": "center",
       },
       paint: {
-        "text-color": "#ffffff",
+        "text-color": "#ffffff", // White text for visibility
         "text-opacity": [
           "interpolate",
           ["linear"],
@@ -310,7 +389,7 @@ const MapBoxV2 = ({
       },
     });
 
-    // Capa de números para puntos RED
+    // ─── 2️⃣ Number layer: RED points ────────────────────────────────────────
     map.addLayer({
       id: "numbers_red",
       type: "symbol",
@@ -344,7 +423,7 @@ const MapBoxV2 = ({
         "text-justify": "center",
       },
       paint: {
-        "text-color": "#ffffff", // Blanco para mejor contraste con rojo
+        "text-color": "#ffffff", // White for better contrast with red background
         "text-opacity": [
           "interpolate",
           ["linear"],
@@ -363,7 +442,7 @@ const MapBoxV2 = ({
       },
     });
 
-    // Capa de números para puntos YELLOW
+    // ─── 3️⃣ Number layer: YELLOW points ─────────────────────────────────────
     map.addLayer({
       id: "numbers_yellow",
       type: "symbol",
@@ -397,7 +476,7 @@ const MapBoxV2 = ({
         "text-justify": "center",
       },
       paint: {
-        "text-color": "#ffffff",
+        "text-color": "#ffffff", // White text for visibility
         "text-opacity": [
           "interpolate",
           ["linear"],
@@ -417,25 +496,41 @@ const MapBoxV2 = ({
     });
   };
 
-  // Función para agregar eventos de mouse al mapa interactivo
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: addMapEvents                                                  */
+  /* -------------------------------------------------------------------------- */
+  // Description : Adds mouse event listeners to interactive map point layers
+  // Parameters  :
+  //    - map: maplibregl.Map → The map instance to add event listeners to
+  // Returns     : void (modifies map by adding event listeners)
+  // Usage       : addMapEvents(mapInstance)
+  // Notes       : Handles cursor change on hover and click events for point selection
+
   const addMapEvents = (map: maplibregl.Map) => {
+    // ─── 1️⃣ Define interactive layer IDs ────────────────────────────────────
     const pointLayers = ["points_green", "points_red", "points_yellow"];
 
     pointLayers.forEach((layerId) => {
+      // ─── 2️⃣ Mouse enter event: Change cursor to pointer ───────────────────
       map.on("mouseenter", layerId, () => {
         map.getCanvas().style.cursor = "pointer";
       });
 
+      // ─── 3️⃣ Mouse leave event: Reset cursor ───────────────────────────────
       map.on("mouseleave", layerId, () => {
         map.getCanvas().style.cursor = "";
-      }); // Al hacer click, buscar el punto original y pasar todas las propiedades (incluyendo gps)
+      });
+
+      // ─── 4️⃣ Click event: Handle point selection ───────────────────────────
       map.on("click", layerId, (e: any) => {
         const feature = e.features![0];
         const properties = feature.properties;
-        // Buscar el punto original por serialNumber
+
+        // Find the original point by serialNumber to get complete data
         const originalPoint = points.find(
           (p: mapPoint) => p.serialNumber === properties.serialNumber
         );
+
         if (onPointClick && originalPoint) {
           onPointClick(originalPoint);
         }
@@ -443,19 +538,35 @@ const MapBoxV2 = ({
     });
   };
 
-  // Función para crear el mapa interactivo
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Interactive Map Creation
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: createInteractiveMap                                          */
+  /* -------------------------------------------------------------------------- */
+  // Description : Creates a fully interactive map with all data sources and layers
+  // Parameters  :
+  //    - Uses component props: points, onPointClick, initialZoom
+  // Returns     : void (modifies mapRef.current and initializes map)
+  // Usage       : Called when staticMap prop is false
+  // Notes       : Includes point layers, number overlays, and interaction events
+
   const createInteractiveMap = () => {
+    // ─── 1️⃣ Initialize interactive map instance ─────────────────────────────
     const map = new maplibregl.Map({
       container: mapContainer.current!,
       style:
         "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
-      center: [-1.1307, 37.987], // Centro de Murcia
-      zoom: initialZoom || 12, // Zoom inicial
+      center: [-1.1307, 37.987], // Center of Murcia, Spain
+      zoom: initialZoom || 12, // Default zoom level
     });
 
     mapRef.current = map;
 
+    // ─── 2️⃣ Setup map data and layers after load ───────────────────────────
     map.on("load", () => {
+      // Add GeoJSON source with all map points
       map.addSource("points", {
         type: "geojson",
         data: {
@@ -464,7 +575,7 @@ const MapBoxV2 = ({
             type: "Feature",
             geometry: {
               type: "Point",
-              coordinates: [p.gps[0], p.gps[1]], // long , lat
+              coordinates: [p.gps[0], p.gps[1]], // [longitude, latitude]
             },
             properties: {
               serialNumber: p.serialNumber,
@@ -473,18 +584,31 @@ const MapBoxV2 = ({
               brand: p.brand,
               model: p.model,
               status: p.status,
-              // Número aleatorio entre 1 y 90
+              // Generate random number for display (1-90)
               randomNumber: Math.floor(Math.random() * 90) + 1,
             },
           })),
         },
       });
 
+      // ─── 3️⃣ Add all map layers and interactions ─────────────────────────
       addPointLayers(map);
       addNumberLayers(map);
       addMapEvents(map);
     });
   };
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: React Effects & Lifecycle
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 EFFECT: Map Initialization                                              */
+  /* -------------------------------------------------------------------------- */
+  // Description : Initializes the map based on staticMap prop and cleans up on unmount
+  // Dependencies: staticMap, points, onPointClick, center, initialZoom
+  // Purpose     : Creates static or interactive map and handles cleanup
+  // Notes       : Recreates map when any dependency changes
 
   useEffect(() => {
     if (staticMap) {
@@ -493,17 +617,26 @@ const MapBoxV2 = ({
       createInteractiveMap();
     }
 
+    // Cleanup function to remove map instance
     return () => mapRef.current?.remove();
   }, [staticMap, points, onPointClick, center, initialZoom]);
 
-  // UseEffect para manejar los filtros (solo para mapa interactivo)
+  /* -------------------------------------------------------------------------- */
+  /* 📍 EFFECT: Filter Management                                               */
+  /* -------------------------------------------------------------------------- */
+  // Description : Applies visibility filters to map layers based on filter state
+  // Dependencies: filters, staticMap
+  // Purpose     : Shows/hides point layers based on user filter selections
+  // Notes       : Only applies to interactive maps, static maps ignore filters
+
   useEffect(() => {
-    if (staticMap) return; // No aplicar filtros en mapa estático
+    // Skip filter application for static maps
+    if (staticMap) return;
 
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    // Actualizar visibilidad de capas según filtros
+    // ─── 1️⃣ Apply GREEN filter ──────────────────────────────────────────────
     map.setLayoutProperty(
       "points_green",
       "visibility",
@@ -515,6 +648,7 @@ const MapBoxV2 = ({
       filters.green ? "visible" : "none"
     );
 
+    // ─── 2️⃣ Apply RED filter ────────────────────────────────────────────────
     map.setLayoutProperty(
       "points_red",
       "visibility",
@@ -526,6 +660,7 @@ const MapBoxV2 = ({
       filters.red ? "visible" : "none"
     );
 
+    // ─── 3️⃣ Apply YELLOW filter ─────────────────────────────────────────────
     map.setLayoutProperty(
       "points_yellow",
       "visibility",
@@ -538,9 +673,24 @@ const MapBoxV2 = ({
     );
   }, [filters, staticMap]);
 
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Component Render
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 RENDER: Map Container with Conditional Search                           */
+  /* -------------------------------------------------------------------------- */
+  // Description : Renders the map container with optional search input overlay
+  // Structure   : Main container → Map container → Search overlay (if interactive)
+  // Styling     : Full width/height with absolute positioning for search
+  // Notes       : Search input only appears on interactive maps
+
   return (
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      {/* ─── 1️⃣ Map Container ─────────────────────────────────────────────── */}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
+
+      {/* ─── 2️⃣ Search Overlay (Interactive Maps Only) ─────────────────────── */}
       {!staticMap && (
         <div
           id="mapbox-search"
@@ -555,7 +705,7 @@ const MapBoxV2 = ({
           <input
             id="search-input"
             type="text"
-            placeholder="Buscar por estación..."
+            placeholder="Search by station..."
             style={{
               fontFamily: "Outfit, sans-serif",
               padding: "8px",
@@ -568,8 +718,8 @@ const MapBoxV2 = ({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 const searchTerm = (e.target as HTMLInputElement).value;
-                // Lógica de búsqueda
-                console.log("Buscar:", searchTerm);
+                // Search logic placeholder
+                console.log("Search:", searchTerm);
               }
             }}
           />
