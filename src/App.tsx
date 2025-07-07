@@ -1,9 +1,8 @@
-
-import Dashboard from "./components/Dashboard/Dashboard";
+import DashboardV2 from "./components/Dashboard/DashboardV2";
 const App = () => {
- return (
+  return (
     <>
-      <Dashboard />
+      <DashboardV2 />
     </>
   );
 };

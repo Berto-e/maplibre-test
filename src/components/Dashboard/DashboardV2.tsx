@@ -1,9 +1,10 @@
 import styles from "./Dashboard.module.css";
-import MapBox from "../Mapbox/Mapbox";
 import { useMapContext } from "../../contexts/MapContext";
 import { useCallback, useEffect, useRef, useState } from "react";
-import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import MapboxV2 from "../Mapbox/MapboxV2";
+import pointsData from "../Mapbox/points.json";
+import type { mapPoint } from "../Mapbox/MapPoint.types";
 
 const Dashboard = () => {
   const { mapElements, filters, setFilters } = useMapContext();
@@ -12,8 +13,6 @@ const Dashboard = () => {
   const redPoints = mapElements.filter((p) => p.status === "red").length;
   const [showPopup, setShowPopup] = useState(false);
   const [selectedProperties, setSelectedProperties] = useState<any>(null);
-  const miniMapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
 
   // Función para manejar cambios en checkboxes
   const handleFilterChange = (color: "green" | "yellow" | "red") => {
@@ -23,53 +22,22 @@ const Dashboard = () => {
     }));
   };
 
-  const handlePointClick = useCallback((properties:any) => {
+  const extract_points_from_json = (): mapPoint[] => {
+    return pointsData as mapPoint[];
+  };
+
+  const points = extract_points_from_json();
+
+  const getRandomStation = () => {
+    const randomIndex = Math.floor(Math.random() * points.length);
+    return points[randomIndex];
+  };
+
+  const randomStation = getRandomStation();
+  const handlePointClick = useCallback((properties: any) => {
     setSelectedProperties(properties);
     setShowPopup(true);
   }, []);
-
-  // Inicializar mini mapa cuando el popup se muestra
-  useEffect(() => {
-    if (
-      showPopup &&
-      selectedProperties?.gps &&
-      Array.isArray(selectedProperties.gps) &&
-      miniMapRef.current
-    ) {
-      // Limpiar el mapa anterior si existe
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-      }
-
-      // Inicializar nuevo mapa
-      const miniMap = new maplibregl.Map({
-        container: miniMapRef.current,
-        style: "https://api.maptiler.com/maps/streets/style.json?key=W8q1pSL8KdnaMEh4wtdB",
-        center: [selectedProperties.gps[0], selectedProperties.gps[1]],
-        zoom: 15,
-        interactive: false, // No interactivo
-        attributionControl: false, // Sin atribuciones
-      });
-
-      // Añadir marcador
-      new maplibregl.Marker({
-        color: "#000c95"
-      })
-        .setLngLat([selectedProperties.gps[0], selectedProperties.gps[1]])
-        .addTo(miniMap);
-
-      // Guardar referencia al mapa
-      mapInstanceRef.current = miniMap;
-
-      // Limpiar el mapa cuando se desmonte
-      return () => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.remove();
-          mapInstanceRef.current = null;
-        }
-      };
-    }
-  }, [showPopup, selectedProperties]);
 
   return (
     <div className={styles.dashboard}>
@@ -96,7 +64,12 @@ const Dashboard = () => {
         {/*Mapbox Container with Filters */}
         <div className={styles.mapSection}>
           <div className={styles.mapContainer}>
-            <MapBox onPointClick={handlePointClick} />
+            <MapboxV2
+              onPointClick={handlePointClick}
+              staticMap={false}
+              initialZoom={8}
+              mapPoints={points}
+            />
           </div>
 
           {/* Filters Panel */}
@@ -158,8 +131,12 @@ const Dashboard = () => {
           </div>
           <div className={styles.cards}>
             <div className={`${styles.card} ${styles.activeCard}`}>
-              <div className={styles.cardTitle}>🎧 Gateways activas</div>
-              <div className={styles.cardValue}>15/15</div>
+              <div className={styles.cardTitle}>
+                ⭕ Estación {randomStation.station}
+              </div>
+              <div className={styles.cardValue}>
+                {randomStation.serialNumber}
+              </div>
             </div>
             <div className={styles.card}>
               🔔 Consumo negativo
@@ -193,12 +170,12 @@ const Dashboard = () => {
       {/* Station Info Popup */}
       {showPopup ? (
         <div className={styles.stationPopup}>
-          <div 
-            className={styles.stationPopupOverlay} 
+          <div
+            className={styles.stationPopupOverlay}
             onClick={() => setShowPopup(false)}
           >
-            <div 
-              className={styles.stationPopupContent} 
+            <div
+              className={styles.stationPopupContent}
               onClick={(e) => e.stopPropagation()}
             >
               <div className={styles.stationPopupHeader}>
@@ -223,8 +200,19 @@ const Dashboard = () => {
                   <span className={styles.stationPopupMapContainerSubTitle}>
                     {selectedProperties.station!}
                   </span>
-                  <div className={styles.stationPopupMapContainerMap} ref={miniMapRef}>
-                    {!selectedProperties?.gps || !Array.isArray(selectedProperties.gps) && (
+                  <div className={styles.stationPopupMapContainerMap}>
+                    {selectedProperties?.gps &&
+                    Array.isArray(selectedProperties.gps) ? (
+                      <MapboxV2
+                        staticMap={true}
+                        mapPoints={[selectedProperties]}
+                        initialZoom={15}
+                        center={[
+                          selectedProperties.gps[0],
+                          selectedProperties.gps[1],
+                        ]}
+                      />
+                    ) : (
                       <span>Sin ubicación</span>
                     )}
                   </div>
