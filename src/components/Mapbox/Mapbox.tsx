@@ -33,7 +33,7 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
 
     mapRef.current = map;
 
-    map.addControl(new maplibregl.FullscreenControl());
+    // map.addControl(new maplibregl.FullscreenControl());
 
     map.on("load", () => {
       map.addSource("points", {
