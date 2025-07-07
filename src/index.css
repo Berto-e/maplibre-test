@@ -4,6 +4,24 @@ body,
   margin: 0;
   padding: 0;
   height: 100%;
+
+  /* Map points colors */
+  --map-point-color-1: #289178;
+  --map-point-color-2: #b4202a;
+  --map-point-color-3: #c67605;
+  --map-point-color-4: #b19100;
+  --map-point-color-5: #979797;
+
+  /*Theme colors*/
+  --primary-blue: #1167b1;
+  --light-blue: #9fdfff;
+  --light-gray: #f4f6f8;
+  --dark-gray: #36454f;
+  --medium-gray: #979797;
+  --charcoal-black: #0f0c0c;
+  --pure-white: #ffffff;
+  --cloud-gray: #dddddd;
+  --primary-blue-hover: #0d4c7a;
 }
 
 body {

@@ -3,19 +3,19 @@
 .dashboard {
   display: flex;
   height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--light-gray);
   font-family: Inter, Outfit, Work Sans, sans-serif;
 }
 
 .sidebar {
   width: 60px;
-  background-color: #eef1f5;
+  background-color: var(--pure-white);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   padding: 20px 0;
-  border-right: 1px solid #ccc;
+  border-right: 1px solid var(--medium-gray);
 }
 
 .logo {
@@ -44,8 +44,8 @@
 .user {
   width: 32px;
   height: 32px;
-  background-color: #9fdfff;
-  color: white;
+  background-color: var(--light-blue);
+  color: var(--pure-white);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -67,7 +67,7 @@
 
 .title span {
   font-weight: normal;
-  color: #999;
+  color: var(--medium-gray);
 }
 
 .mapSection {
@@ -79,15 +79,15 @@
 .mapContainer {
   flex: 1;
   height: 550px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--cloud-gray);
   border-radius: 8px;
   overflow: hidden;
 }
 
 .filtersPanel {
   width: 280px;
-  background-color: white;
-  border: 1px solid #ddd;
+  background-color: var(--pure-white);
+  border: 1px solid var(--cloud-gray);
   border-radius: 8px;
   padding: 20px;
   height: 510px;
@@ -98,8 +98,8 @@
   font-size: 18px;
   font-weight: bold;
   margin-bottom: 20px;
-  color: #333;
-  border-bottom: 2px solid #f0f0f0;
+  color: var(--dark-gray);
+  border-bottom: 2px solid var(--light-gray);
   padding-bottom: 10px;
 }
 
@@ -111,7 +111,7 @@
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: #555;
+  color: var(--medium-gray);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -123,13 +123,13 @@
   margin-bottom: 8px;
   cursor: pointer;
   font-size: 14px;
-  color: #666;
+  color: var(--medium-gray);
 }
 
 .filterCheckbox input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #1167b1;
+  accent-color: var(--primary-blue);
 }
 
 .statusIndicator {
@@ -140,15 +140,15 @@
 }
 
 .statusIndicator.green {
-  background-color: #2ecc71;
+  background-color: var(--map-point-color-1);
 }
 
 .statusIndicator.red {
-  background-color: #e74c3c;
+  background-color: var(--map-point-color-2);
 }
 
 .statusIndicator.yellow {
-  background-color: #f1c40f;
+  background-color: var(--map-point-color-3);
 }
 
 .actionButton {
@@ -156,8 +156,8 @@
   width: 100%;
   padding: 10px 15px;
   margin-bottom: 8px;
-  background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background-color: var(--light-gray);
+  border: 1px solid var(--cloud-gray);
   border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
@@ -166,8 +166,8 @@
 }
 
 .actionButton:hover {
-  background-color: #e9ecef;
-  border-color: #1167b1;
+  background-color: var(--light-gray);
+  border-color: var(--primary-blue);
 }
 
 .indicators h2 {
@@ -189,8 +189,8 @@
 }
 
 .card {
-  background-color: white;
-  border: 1px solid #ddd;
+  background-color: var(--pure-white);
+  border: 1px solid var(--cloud-gray);
   border-radius: 3px;
   padding: 20px;
   font-size: 14px;
@@ -204,8 +204,8 @@
 }
 
 .activeCard {
-  background-color: #1167b1;
-  color: white;
+  background-color: var(--primary-blue);
+  color: var(--pure-white);
   font-weight: bold;
 }
 
@@ -225,17 +225,17 @@
 
 .filters button {
   padding: 5px 12px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--cloud-gray);
   border-radius: 6px;
-  background-color: white;
+  background-color: var(--pure-white);
   cursor: pointer;
   font-size: 14px;
 }
 
 .activeFilter {
-  background-color: #e6f0ff;
-  border-color: #0060d0;
-  color: #0060d0;
+  background-color: var(--light-gray);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
   font-weight: bold;
 }
 
@@ -264,7 +264,7 @@
 }
 
 .stationPopupContent {
-  background-color: white;
+  background-color: var(--pure-white);
   width: calc(100vw - 150px);
   height: calc(100vh - 150px);
   border-radius: 16px;
@@ -279,15 +279,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 24px 32px;
-  border-bottom: 1px solid #e5e7eb;
-  background-color: #f9fafb;
+  border-bottom: 1px solid var(--cloud-gray);
+  background-color: var(--light-gray);
 }
 
 .stationPopupTitle {
   font-size: 24px;
   font-weight: 600;
   margin: 0;
-  color: #111827;
+  color: var(--charcoal-black);
 }
 
 .stationPopupClose {
@@ -295,7 +295,7 @@
   border: none;
   font-size: 32px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--medium-gray);
   padding: 0;
   width: 40px;
   height: 40px;
@@ -307,8 +307,8 @@
 }
 
 .stationPopupClose:hover {
-  background-color: #f3f4f6;
-  color: #374151;
+  background-color: var(--light-gray);
+  color: var(--medium-gray);
 }
 
 .stationPopupMainContainer {
@@ -320,7 +320,7 @@
 .stationPopupMapContainer {
   flex: 1;
   padding: 32px;
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--cloud-gray);
   display: flex;
   flex-direction: column;
 }
@@ -329,12 +329,12 @@
   font-size: 20px;
   font-weight: 600;
   margin: 0 0 8px 0;
-  color: #111827;
+  color: var(--charcoal-black);
 }
 
 .stationPopupMapContainerSubTitle {
   font-size: 14px;
-  color: #6b7280;
+  color: var(--medium-gray);
   margin-bottom: 24px;
 }
 
@@ -347,7 +347,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f5f5f5;
+  background-color: var(--light-gray);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -364,7 +364,7 @@
   font-size: 20px;
   font-weight: 600;
   margin: 0;
-  color: #111827;
+  color: var(--charcoal-black);
 }
 
 .stationPopupInfoGrid {
@@ -382,7 +382,7 @@
 
 .stationPopupInfoLabel {
   font-weight: 600;
-  color: #111827;
+  color: var(--primary-blue);
 }
 
 .stationPopupBilling {
@@ -393,7 +393,7 @@
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 16px 0;
-  color: #111827;
+  color: var(--charcoal-black);
 }
 
 .stationPopupBillingGrid {
@@ -404,11 +404,11 @@
 
 .stationPopupBillingItem {
   font-size: 14px;
-  color: #374151;
+  color: var(--medium-gray);
   padding: 12px 16px;
-  background-color: #f9fafb;
+  background-color: var(--light-gray);
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--cloud-gray);
 }
 
 /* Responsive adjustments */
@@ -424,7 +424,7 @@
 
   .stationPopupMapContainer {
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--cloud-gray);
   }
 
   .stationPopupInfoGrid {

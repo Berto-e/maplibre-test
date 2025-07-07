@@ -103,7 +103,7 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
             18,
             1,
           ],
-          "circle-color": "#2ECC71", // Verde
+          "circle-color": "#289178", // Verde
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": [
             "interpolate",
@@ -168,7 +168,7 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
             18,
             1,
           ],
-          "circle-color": "#E74C3C", // Rojo
+          "circle-color": "#B4202A", // Rojo
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": [
             "interpolate",
@@ -233,7 +233,7 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
             18,
             1,
           ],
-          "circle-color": "#F1C40F", // Amarillo
+          "circle-color": "#C67605", // Amarillo
           "circle-stroke-color": "#ffffff",
           "circle-stroke-width": [
             "interpolate",
@@ -289,7 +289,7 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
           "text-justify": "center",
         },
         paint: {
-          "text-color": "#000000",
+          "text-color": "#ffffff",
           "text-opacity": [
             "interpolate",
             ["linear"],
@@ -395,7 +395,7 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
           "text-justify": "center",
         },
         paint: {
-          "text-color": "#000000",
+          "text-color": "#ffffff",
           "text-opacity": [
             "interpolate",
             ["linear"],
@@ -484,7 +484,44 @@ const MapBox = ({ onPointClick }: MapBoxProps) => {
     );
   }, [filters]);
 
-  return <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />;
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+      <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
+      <div
+        id="mapbox-search"
+        style={{
+          position: "absolute",
+          top: 16,
+          left: 16,
+          zIndex: 2,
+
+          pointerEvents: "auto",
+        }}
+      >
+        <input
+          id="search-input"
+          type="text"
+          placeholder="Buscar por estación..."
+          style={{
+            fontFamily: "Outfit, sans-serif",
+            padding: "8px",
+            borderRadius: "4px",
+            border: "1px solid #DDDDDD",
+            width: "250px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+            background: "#fff",
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const searchTerm = (e.target as HTMLInputElement).value;
+              // Logioa de búsqueda
+              console.log("Buscar:", searchTerm);
+            }
+          }}
+        />
+      </div>
+    </div>
+  );
 };
 
 export default memo(MapBox);
