@@ -51,7 +51,7 @@ const MapBoxV2 = ({
 
     // Añadir marcador
     new maplibregl.Marker({
-      color: "#000c95",
+      color: "var(--primary-blue)", // Usar color primario del tema
     })
       .setLngLat(mapCenter)
       .addTo(map);
