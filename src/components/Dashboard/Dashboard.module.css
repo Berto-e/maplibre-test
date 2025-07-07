@@ -221,16 +221,6 @@
   min-height: 0;
 }
 
-@media screen and (min-height: 768px) {
-  .card {
-    padding: 20px;
-  }
-
-  .card strong {
-    font-size: 28px;
-  }
-}
-
 .card strong {
   font-size: 32px;
   display: block;
@@ -250,6 +240,20 @@
 
 .cardValue {
   font-size: 32px;
+}
+
+@media screen and (min-height: 700px) {
+  .card {
+    padding: 20px;
+  }
+
+  .card strong {
+    font-size: 50px;
+  }
+
+  .cardValue {
+    font-size: 40px;
+  }
 }
 
 .filters {
