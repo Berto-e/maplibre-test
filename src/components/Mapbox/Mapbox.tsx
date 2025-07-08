@@ -128,7 +128,7 @@ const MapBox = ({
         center: [firstResult.gps[0], firstResult.gps[1]],
 
         zoom: (initialZoom || 12) + 3,
-        speed: map.getZoom() < 12 ? 0.3 : 0.7,
+        speed: map.getZoom() < 12 ? 0.55 : 0.7,
         curve: 1,
         essential: true,
       });
@@ -201,7 +201,7 @@ const MapBox = ({
       center: [point.gps[0], point.gps[1]],
       bearing: 0,
       zoom: (initialZoom || 12) + 3,
-      speed: 0.5,
+      speed: map.getZoom() < 12 ? 0.55 : 0.7,
       curve: 1,
       essential: true,
     });
