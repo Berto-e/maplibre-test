@@ -862,7 +862,7 @@ const MapBox = ({
           <input
             id="search-input"
             type="text"
-            placeholder="Search by station..."
+            placeholder="Buscar por estación..."
             style={{
               fontFamily: "Outfit, sans-serif",
               padding: "8px",
@@ -926,17 +926,27 @@ const MapBox = ({
                   <div
                     style={{
                       fontSize: "10px",
-                      color:
-                        point.status === "green"
-                          ? "#289178"
-                          : point.status === "red"
-                          ? "#B4202A"
-                          : "#C67605",
+
                       marginTop: "2px",
                       fontWeight: "bold",
                     }}
                   >
-                    Status: {point.status.toUpperCase()}
+                    Status:{" "}
+                    <span
+                      style={{
+                        display: "inline-block",
+                        background:
+                          point.status === "green"
+                            ? "#289178"
+                            : point.status === "red"
+                            ? "#B4202A"
+                            : "#C67605",
+                        width: "11px",
+                        height: "11px",
+                        borderRadius: "50%",
+                        verticalAlign: "middle",
+                      }}
+                    ></span>
                   </div>
                 </div>
               ))}
