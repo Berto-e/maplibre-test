@@ -28,12 +28,6 @@ const Dashboard = () => {
 
   const points = extract_points_from_json();
 
-  const getRandomStation = () => {
-    const randomIndex = Math.floor(Math.random() * points.length);
-    return points[randomIndex];
-  };
-
-  const randomStation = getRandomStation();
   const handlePointClick = useCallback((properties: any) => {
     setSelectedProperties(properties);
     setShowPopup(true);
@@ -131,12 +125,8 @@ const Dashboard = () => {
           </div>
           <div className={styles.cards}>
             <div className={`${styles.card} ${styles.activeCard}`}>
-              <div className={styles.cardTitle}>
-                ⭕ Estación {randomStation.station}
-              </div>
-              <div className={styles.cardValue}>
-                {randomStation.serialNumber}
-              </div>
+              <div className={styles.cardTitle}>⭕ Gateways activas</div>
+              <div className={styles.cardValue}>15/15</div>
             </div>
             <div className={styles.card}>
               🔔 Consumo negativo
