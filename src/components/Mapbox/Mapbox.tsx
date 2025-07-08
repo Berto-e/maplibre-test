@@ -20,9 +20,7 @@
 //                 initialZoom={12}
 //               />
 //
-// Dependencies: • maplibre-gl (map rendering engine)
-//               • React (hooks: useEffect, useRef, memo)
-//               • MapContext (filter state management)
+//
 //
 // Author      : Alberto Álvarez González
 // Last Update : 2025
