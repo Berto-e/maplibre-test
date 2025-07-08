@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// 🗺️ MAPBOX V2 COMPONENT - MAPLIBRE REACT INTEGRATION
+// 🗺️ MAPBOX  COMPONENT - MAPLIBRE REACT INTEGRATION
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Description : A flexible MapLibre-based React component supporting both static
@@ -12,7 +12,7 @@
 //               • Built-in search functionality for interactive maps
 //               • Memoized for performance optimization
 //
-// Usage       : <MapBoxV2
+// Usage       : <MapBox
 //                 staticMap={false}
 //                 mapPoints={pointsArray}
 //                 onPointClick={handlePointClick}
