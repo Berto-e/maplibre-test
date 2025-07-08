@@ -29,7 +29,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { mapPoint } from "./MapPoint.types";
@@ -66,9 +66,167 @@ const MapBox = ({
   // 📌 SECTION: State & Refs
   ////////////////////////////////////////////////////////////////////////////////
 
+  // Refs for map container and map instance
   const mapContainer = useRef(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const points = mapPoints || [];
+  //  search functionality
+  const [searchTerm, setSearchTerm] = useState("");
+  const [results, setResults] = useState<mapPoint[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Search bar Utilities
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: handleChange                                                  */
+  /* -------------------------------------------------------------------------- */
+  // Description : Handles input change and filters results in real-time
+  // Parameters  :
+  //    - event: React.ChangeEvent<HTMLInputElement> → Input change event
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    setSearchTerm(value);
+    setHighlightedIndex(-1);
+
+    if (value.trim() === "") {
+      setResults([]);
+      setIsSearching(false);
+    } else {
+      setIsSearching(true);
+      const filteredResults = points.filter((point) =>
+        point.station.toLowerCase().includes(value.toLowerCase())
+      );
+      setResults(filteredResults);
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: handleSearch                                                  */
+  /* -------------------------------------------------------------------------- */
+  // Description : Executes search and flies to the first matching result
+  // Parameters  : none (uses searchTerm state)
+  // Returns     : void (triggers map flyTo animation)
+  // Usage       : Called when Enter key is pressed or search is triggered
+  // Notes       : Clears search UI and focuses on first result with enhanced zoom
+
+  const handleSearch = () => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded() || !searchTerm.trim()) return;
+
+    // ─── 1️⃣ Filter points based on search term ─────────────────────────────
+    const filteredResults = points.filter((point) =>
+      point.station.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (filteredResults.length > 0) {
+      const firstResult = filteredResults[0];
+
+      // ─── 2️⃣ Fly to the first result with smooth animation ──────────────────
+      map.flyTo({
+        center: [firstResult.gps[0], firstResult.gps[1]],
+        bearing: 0,
+        zoom: (initialZoom || 12) + 3,
+        speed: 0.5, // Smooth flying speed
+        curve: 1, // Animation curve
+        essential: true,
+      });
+
+      // ─── 3️⃣ Clear search UI after successful search ────────────────────────
+      clearSearch();
+
+      // ─── 4️⃣ Trigger point click callback if available ──────────────────────
+      if (onPointClick) {
+        onPointClick(firstResult);
+      }
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: handleKeyDown                                                 */
+  /* -------------------------------------------------------------------------- */
+  // Description : Handles keyboard navigation for search input and results
+  // Parameters  :
+  //    - event: React.KeyboardEvent<HTMLInputElement> → Keyboard event
+  // Returns     : void (updates state and triggers actions)
+  // Usage       : Called on keyDown events in search input
+  // Notes       : Supports Enter (search), Escape (clear), Arrow keys (navigate)
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (highlightedIndex >= 0 && results[highlightedIndex]) {
+        // Use highlighted result
+        handleResultClick(results[highlightedIndex]);
+      } else {
+        // Use search term
+        handleSearch();
+      }
+    }
+
+    if (event.key === "Escape") {
+      clearSearch();
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setHighlightedIndex((prev) =>
+        prev < results.length - 1 ? prev + 1 : prev
+      );
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: handleResultClick                                             */
+  /* -------------------------------------------------------------------------- */
+  // Description : Handles clicking on a search result item
+  // Parameters  :
+  //    - point: mapPoint → The selected map point
+  // Returns     : void (triggers map animation and callbacks)
+  // Usage       : Called when user clicks on search result
+  // Notes       : Flies to point, clears search, and triggers point click callback
+
+  const handleResultClick = (point: mapPoint) => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    // ─── 1️⃣ Fly to selected point ───────────────────────────────────────────
+    map.flyTo({
+      center: [point.gps[0], point.gps[1]],
+      bearing: 0,
+      zoom: (initialZoom || 12) + 3,
+      speed: 0.5,
+      curve: 1,
+      essential: true,
+    });
+
+    // ─── 2️⃣ Clear search UI ─────────────────────────────────────────────────
+    clearSearch();
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: clearSearch                                                   */
+  /* -------------------------------------------------------------------------- */
+  // Description : Clears all search-related state
+  // Parameters  : none
+  // Returns     : void (resets search state)
+  // Usage       : Called when clearing search or after successful selection
+  // Notes       : Resets search term, results, and highlighted index
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    setResults([]);
+    setIsSearching(false);
+    setHighlightedIndex(-1);
+  };
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Static Map Utilities
@@ -702,6 +860,7 @@ const MapBox = ({
             pointerEvents: "auto",
           }}
         >
+          {/* Search input */}
           <input
             id="search-input"
             type="text"
@@ -715,14 +874,99 @@ const MapBox = ({
               boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
               background: "#fff",
             }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const searchTerm = (e.target as HTMLInputElement).value;
-                // Search logic placeholder
-                console.log("Search:", searchTerm);
-              }
-            }}
+            value={searchTerm}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+            autoComplete="off"
           />
+
+          {/* Search results dropdown */}
+          {searchTerm && results.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: 40,
+                left: 0,
+                width: "250px",
+                background: "#fff",
+                border: "1px solid #DDD",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+                zIndex: 3,
+                maxHeight: "220px",
+                overflowY: "auto",
+              }}
+            >
+              {results.map((point, index) => (
+                <div
+                  key={point.serialNumber}
+                  style={{
+                    padding: "8px 12px",
+                    cursor: "pointer",
+                    borderBottom:
+                      index < results.length - 1 ? "1px solid #F0F0F0" : "none",
+                    backgroundColor:
+                      index === highlightedIndex ? "#F5F5F5" : "#fff",
+                    transition: "background-color 0.2s ease",
+                  }}
+                  onClick={() => handleResultClick(point)}
+                  onMouseEnter={() => setHighlightedIndex(index)}
+                  onMouseLeave={() => setHighlightedIndex(-1)}
+                >
+                  <div style={{ fontWeight: "bold", fontSize: "14px" }}>
+                    {point.station}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      color: "#666",
+                      marginTop: "2px",
+                    }}
+                  >
+                    {point.brand} • {point.model}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color:
+                        point.status === "green"
+                          ? "#289178"
+                          : point.status === "red"
+                          ? "#B4202A"
+                          : "#C67605",
+                      marginTop: "2px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Status: {point.status.toUpperCase()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* No results message */}
+          {searchTerm && isSearching && results.length === 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: 40,
+                left: 0,
+                width: "250px",
+                background: "#fff",
+                border: "1px solid #DDD",
+                borderRadius: "4px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+                zIndex: 3,
+                padding: "16px",
+                textAlign: "center",
+                color: "#666",
+                fontSize: "14px",
+              }}
+            >
+              No stations found for "{searchTerm}"
+            </div>
+          )}
         </div>
       )}
     </div>
