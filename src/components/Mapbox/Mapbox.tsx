@@ -126,10 +126,10 @@ const MapBox = ({
       // ─── 2️⃣ Fly to the first result with smooth animation ──────────────────
       map.flyTo({
         center: [firstResult.gps[0], firstResult.gps[1]],
-        bearing: 0,
+
         zoom: (initialZoom || 12) + 3,
-        speed: 0.5, // Smooth flying speed
-        curve: 1, // Animation curve
+        speed: map.getZoom() < 12 ? 0.3 : 0.7,
+        curve: 1,
         essential: true,
       });
 
