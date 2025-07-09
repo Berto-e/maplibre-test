@@ -73,6 +73,7 @@ const MapBox = ({
   const [results, setResults] = useState<mapPoint[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [alertSelected, setAlertSelected] = useState(false);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Search bar Utilities
@@ -270,6 +271,83 @@ const MapBox = ({
   };
 
   ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Dynamic Animation Utilities
+  ////////////////////////////////////////////////////////////////////////////////
+
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: createPulsingDot                                              */
+  /* -------------------------------------------------------------------------- */
+  // Description : Creates a pulsing dot animation for red (critical) points
+  // Parameters  :
+  //    - size: number → Size of the pulsing dot in pixels (default: 100)
+  //    - map: maplibregl.Map → Map instance to trigger repaints
+  // Returns     : object → Pulsing dot image object for MapLibre
+  // Usage       : const pulsingDot = createPulsingDot(100, mapInstance)
+  // Notes       : Creates smooth pulsing animation for critical status indicators
+
+  const createPulsingDot = (size: number = 200, map: maplibregl.Map) => {
+    return {
+      width: size,
+      height: size,
+      data: new Uint8Array(size * size * 4),
+      context: null as CanvasRenderingContext2D | null,
+
+      // ─── 1️⃣ Get rendering context for the map canvas when layer is added ──
+      onAdd() {
+        const canvas = document.createElement("canvas");
+        canvas.width = this.width;
+        canvas.height = this.height;
+        this.context = canvas.getContext("2d");
+      },
+
+      // ─── 2️⃣ Called once before every frame where the icon will be used ────
+      render() {
+        const duration = 1000;
+        const t = (performance.now() % duration) / duration;
+
+        const radius = (size / 2) * 0.3;
+        const outerRadius = (size / 2) * 0.7 * t + radius;
+        const context = this.context;
+
+        // Early return if context is not available
+        if (!context) return false;
+
+        // ─── 3️⃣ Draw outer pulsing circle ──────────────────────────────────
+        context.clearRect(0, 0, this.width, this.height);
+        context.beginPath();
+        context.arc(
+          this.width / 2,
+          this.height / 2,
+          outerRadius,
+          0,
+          Math.PI * 2
+        );
+        context.fillStyle = `rgba(255, 0, 0,${0.3 * (1 - t)})`;
+        context.fill();
+
+        // ─── 4️⃣ Draw inner circle with stroke ──────────────────────────────
+        context.beginPath();
+        context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
+        context.fillStyle = "#B4202A";
+        context.strokeStyle = "white";
+        context.lineWidth = 2 + 4 * (1 - t);
+        context.fill();
+        context.stroke();
+
+        // ─── 5️⃣ Update image data from canvas ──────────────────────────────
+        const imageData = context.getImageData(0, 0, this.width, this.height);
+        this.data = new Uint8Array(imageData.data);
+
+        // ─── 6️⃣ Continuously repaint for smooth animation ──────────────────
+        map.triggerRepaint();
+
+        // Return true to indicate the image was updated
+        return true;
+      },
+    };
+  };
+
+  ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Interactive Map Layer Management
   ////////////////////////////////////////////////////////////////////////////////
 
@@ -281,10 +359,14 @@ const MapBox = ({
   //    - map: maplibregl.Map → The map instance to add layers to
   // Returns     : void (modifies map by adding layers)
   // Usage       : addPointLayers(mapInstance)
-  // Notes       : Creates 3 layers: green, red, yellow with status-based filtering
+  // Notes       : Creates 3 layers: green, red (with pulsing animation), yellow
 
   const addPointLayers = (map: maplibregl.Map) => {
-    // ─── 1️⃣ Layer: GREEN status points ──────────────────────────────────────
+    // ─── 1️⃣ Add pulsing dot image for red points (larger size) ──────────────
+    const pulsingDot = createPulsingDot(350, map);
+    map.addImage("pulsing-dot", pulsingDot, { pixelRatio: 2 });
+
+    // ─── 2️⃣ Layer: GREEN status points (circles) ────────────────────────────
     map.addLayer({
       id: "points_green",
       type: "circle",
@@ -294,7 +376,6 @@ const MapBox = ({
         "circle-radius": [
           "interpolate",
           ["linear"],
-          // Zoom levels to make zooming more gradual
           ["zoom"],
           5,
           0,
@@ -328,8 +409,8 @@ const MapBox = ({
           18,
           1,
         ],
-        "circle-color": "#289178", // Green color
-        "circle-stroke-color": "#ffffff", // White border
+        "circle-color": "#289178",
+        "circle-stroke-color": "#ffffff",
         "circle-stroke-width": [
           "interpolate",
           ["linear"],
@@ -350,7 +431,8 @@ const MapBox = ({
       },
     });
 
-    // ─── 2️⃣ Layer: RED status points ────────────────────────────────────────
+    // ─── 3️⃣ Layer: RED status points (initial static circles) ───────────────
+    // Note: Will be replaced by useEffect based on alertSelected state
     map.addLayer({
       id: "points_red",
       type: "circle",
@@ -393,8 +475,8 @@ const MapBox = ({
           18,
           1,
         ],
-        "circle-color": "#B4202A", // Red color
-        "circle-stroke-color": "#ffffff", // White border
+        "circle-color": "#B4202A",
+        "circle-stroke-color": "#ffffff",
         "circle-stroke-width": [
           "interpolate",
           ["linear"],
@@ -415,7 +497,7 @@ const MapBox = ({
       },
     });
 
-    // ─── 3️⃣ Layer: YELLOW status points ─────────────────────────────────────
+    // ─── 4️⃣ Layer: YELLOW status points (circles) ───────────────────────────
     map.addLayer({
       id: "points_yellow",
       type: "circle",
@@ -458,8 +540,8 @@ const MapBox = ({
           18,
           1,
         ],
-        "circle-color": "#C67605", // Yellow/Orange color
-        "circle-stroke-color": "#ffffff", // White border
+        "circle-color": "#C67605",
+        "circle-stroke-color": "#ffffff",
         "circle-stroke-width": [
           "interpolate",
           ["linear"],
@@ -489,7 +571,7 @@ const MapBox = ({
   //    - map: maplibregl.Map → The map instance to add text layers to
   // Returns     : void (modifies map by adding text symbol layers)
   // Usage       : addNumberLayers(mapInstance)
-  // Notes       : Numbers are displayed with zoom-responsive sizing and opacity
+  // Notes       : Numbers displayed on all point types, including RED pulsing points
 
   const addNumberLayers = (map: maplibregl.Map) => {
     // ─── 1️⃣ Number layer: GREEN points ──────────────────────────────────────
@@ -499,7 +581,7 @@ const MapBox = ({
       source: "points",
       filter: ["==", ["get", "status"], "green"],
       layout: {
-        "text-field": ["get", "randomNumber"], // Display random number property
+        "text-field": ["get", "randomNumber"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
         "text-size": [
           "interpolate",
@@ -526,7 +608,7 @@ const MapBox = ({
         "text-justify": "center",
       },
       paint: {
-        "text-color": "#ffffff", // White text for visibility
+        "text-color": "#ffffff",
         "text-opacity": [
           "interpolate",
           ["linear"],
@@ -545,7 +627,8 @@ const MapBox = ({
       },
     });
 
-    // ─── 2️⃣ Number layer: RED points ────────────────────────────────────────
+    // ─── 2️⃣ Number layer: RED points (initial static version) ───────────────
+    // Note: Will be replaced by useEffect based on alertSelected state
     map.addLayer({
       id: "numbers_red",
       type: "symbol",
@@ -579,7 +662,7 @@ const MapBox = ({
         "text-justify": "center",
       },
       paint: {
-        "text-color": "#ffffff", // White for better contrast with red background
+        "text-color": "#ffffff",
         "text-opacity": [
           "interpolate",
           ["linear"],
@@ -632,7 +715,7 @@ const MapBox = ({
         "text-justify": "center",
       },
       paint: {
-        "text-color": "#ffffff", // White text for visibility
+        "text-color": "#ffffff",
         "text-opacity": [
           "interpolate",
           ["linear"],
@@ -665,8 +748,10 @@ const MapBox = ({
   const addMapEvents = (map: maplibregl.Map) => {
     // ─── 1️⃣ Define interactive layer IDs ────────────────────────────────────
     const pointLayers = ["points_green", "points_red", "points_yellow"];
+    const numberLayers = ["numbers_green", "numbers_red", "numbers_yellow"];
+    const allInteractiveLayers = [...pointLayers, ...numberLayers];
 
-    pointLayers.forEach((layerId) => {
+    allInteractiveLayers.forEach((layerId) => {
       // ─── 2️⃣ Mouse enter event: Change cursor to pointer ───────────────────
       map.on("mouseenter", layerId, () => {
         map.getCanvas().style.cursor = "pointer";
@@ -804,7 +889,7 @@ const MapBox = ({
       filters.green ? "visible" : "none"
     );
 
-    // ─── 2️⃣ Apply RED filter ────────────────────────────────────────────────
+    // ─── 2️⃣ Apply RED filter (pulsing dots + numbers) ───────────────────────
     map.setLayoutProperty(
       "points_red",
       "visibility",
@@ -829,6 +914,275 @@ const MapBox = ({
     );
   }, [filters, staticMap]);
 
+  /* -------------------------------------------------------------------------- */
+  /* 📍 EFFECT: Alert Button Layer Toggle                                       */
+  /* -------------------------------------------------------------------------- */
+  // Description : Updates red point layers when alertSelected state changes
+  // Dependencies: alertSelected, staticMap
+  // Purpose     : Switches between static circles and pulsing animation for red points
+  // Notes       : Only applies to interactive maps, recreates red point layers
+
+  useEffect(() => {
+    // Skip for static maps
+    if (staticMap) return;
+
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    // ─── 1️⃣ Remove existing red point layers ────────────────────────────────
+    if (map.getLayer("points_red")) {
+      map.removeLayer("points_red");
+    }
+    if (map.getLayer("numbers_red")) {
+      map.removeLayer("numbers_red");
+    }
+
+    // ─── 2️⃣ Add red point layer based on alert state ───────────────────────
+    if (alertSelected) {
+      // Add pulsing red points
+      map.addLayer({
+        id: "points_red",
+        type: "symbol",
+        source: "points",
+        filter: ["==", ["get", "status"], "red"],
+        layout: {
+          "icon-image": "pulsing-dot",
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            0.25,
+            7.23,
+            0.45,
+            9,
+            0.5,
+            11,
+            0.6,
+            13,
+            0.7,
+            15,
+            0.8,
+            18,
+            1.0,
+          ],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+
+      // Add numbers for pulsing red points
+      map.addLayer({
+        id: "numbers_red",
+        type: "symbol",
+        source: "points",
+        filter: ["==", ["get", "status"], "red"],
+        layout: {
+          "text-field": ["get", "randomNumber"],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            6,
+            7.23,
+            10,
+            9,
+            11,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            18,
+            18,
+          ],
+          "text-anchor": "center",
+          "text-justify": "center",
+          "text-allow-overlap": true,
+          "text-ignore-placement": true,
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            0.2,
+            6.5,
+            0.4,
+            7.23,
+            1,
+            18,
+            1,
+          ],
+        },
+      });
+    } else {
+      // Add static red circles
+      map.addLayer({
+        id: "points_red",
+        type: "circle",
+        source: "points",
+        filter: ["==", ["get", "status"], "red"],
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            4,
+            7.23,
+            12,
+            9,
+            14,
+            11,
+            16,
+            13,
+            18,
+            15,
+            20,
+            18,
+            22,
+          ],
+          "circle-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            0.2,
+            6.5,
+            0.4,
+            7.23,
+            1,
+            18,
+            1,
+          ],
+          "circle-color": "#B4202A",
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            1,
+            7.23,
+            2,
+            11,
+            2.5,
+            15,
+            3,
+            18,
+            3.5,
+          ],
+        },
+      });
+
+      // Add numbers for static red circles
+      map.addLayer({
+        id: "numbers_red",
+        type: "symbol",
+        source: "points",
+        filter: ["==", ["get", "status"], "red"],
+        layout: {
+          "text-field": ["get", "randomNumber"],
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-size": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            6,
+            7.23,
+            10,
+            9,
+            11,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            18,
+            18,
+          ],
+          "text-anchor": "center",
+          "text-justify": "center",
+        },
+        paint: {
+          "text-color": "#ffffff",
+          "text-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            5,
+            0,
+            6,
+            0.2,
+            6.5,
+            0.4,
+            7.23,
+            1,
+            18,
+            1,
+          ],
+        },
+      });
+    }
+
+    // ─── 3️⃣ Re-add event listeners for the new red layers ──────────────────
+    const redLayers = ["points_red", "numbers_red"];
+    redLayers.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+
+      map.on("mouseleave", layerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      map.on("click", layerId, (e: any) => {
+        const feature = e.features![0];
+        const properties = feature.properties;
+        const originalPoint = points.find(
+          (p: mapPoint) => p.serialNumber === properties.serialNumber
+        );
+        if (onPointClick && originalPoint) {
+          onPointClick(originalPoint);
+        }
+      });
+    });
+
+    // ─── 4️⃣ Apply current filter state to new layers ───────────────────────
+    map.setLayoutProperty(
+      "points_red",
+      "visibility",
+      filters.red ? "visible" : "none"
+    );
+    map.setLayoutProperty(
+      "numbers_red",
+      "visibility",
+      filters.red ? "visible" : "none"
+    );
+  }, [alertSelected, staticMap, filters.red, onPointClick, points]);
+
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Component Render
   ////////////////////////////////////////////////////////////////////////////////
@@ -845,7 +1199,6 @@ const MapBox = ({
     <div style={{ width: "100%", height: "100%", position: "relative" }}>
       {/* ─── 1️⃣ Map Container ─────────────────────────────────────────────── */}
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
-
       {/* ─── 2️⃣ Search Overlay (Interactive Maps Only) ─────────────────────── */}
       {!staticMap && (
         <div
@@ -977,6 +1330,60 @@ const MapBox = ({
           )}
         </div>
       )}
+
+      {/* ─── 3️⃣ Alert Button (Interactive Maps Only) ───────────────────────── */}
+      <button
+        type="button"
+        onClick={() => setAlertSelected(!alertSelected)}
+        style={{
+          position: "absolute",
+          bottom: 16,
+          left: 16,
+          zIndex: 2,
+          pointerEvents: "auto",
+          cursor: "pointer",
+          padding: 0,
+          border: "none",
+          background: "none",
+        }}
+      >
+        <div
+          style={{
+            padding: "3px",
+            borderRadius: "4px",
+            border: "1px solid #DDDDDD",
+            width: "25px",
+            height: "25px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+            background: alertSelected ? "#cae5fa" : "#fff", // Gris azulado claro cuando seleccionado
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            transition: "background-color 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            if (!alertSelected) {
+              e.currentTarget.style.background = "#F5F5F5"; // Gris suave en hover
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!alertSelected) {
+              e.currentTarget.style.background = "#fff"; // Volver al blanco
+            }
+          }}
+        >
+          <span
+            role="img"
+            aria-label="Alerta"
+            style={{
+              fontSize: "20px",
+              display: "block",
+            }}
+          >
+            🚨
+          </span>
+        </div>
+      </button>
     </div>
   );
 };
