@@ -801,6 +801,8 @@ const MapBox = ({
         "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
       center: [-1.1307, 37.987], // Center of Murcia, Spain
       zoom: initialZoom || 12, // Default zoom level
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2), // ← Añadir para mejor calidad
+      fadeDuration: 300, // ← Transiciones más suaves
     });
 
     mapRef.current = map;
