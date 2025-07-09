@@ -1306,7 +1306,7 @@ const MapBox = ({
             </div>
           )}
 
-          {/* No results message */}
+          {/* No results message  */}
           {searchTerm && isSearching && results.length === 0 && (
             <div
               style={{
