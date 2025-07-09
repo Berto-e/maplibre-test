@@ -1332,58 +1332,60 @@ const MapBox = ({
       )}
 
       {/* ─── 3️⃣ Alert Button (Interactive Maps Only) ───────────────────────── */}
-      <button
-        type="button"
-        onClick={() => setAlertSelected(!alertSelected)}
-        style={{
-          position: "absolute",
-          bottom: 16,
-          left: 16,
-          zIndex: 2,
-          pointerEvents: "auto",
-          cursor: "pointer",
-          padding: 0,
-          border: "none",
-          background: "none",
-        }}
-      >
-        <div
+      {!staticMap && (
+        <button
+          type="button"
+          onClick={() => setAlertSelected(!alertSelected)}
           style={{
-            padding: "3px",
-            borderRadius: "4px",
-            border: "1px solid #DDDDDD",
-            width: "25px",
-            height: "25px",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-            background: alertSelected ? "#cae5fa" : "#fff", // Gris azulado claro cuando seleccionado
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "background-color 0.2s ease",
-          }}
-          onMouseEnter={(e) => {
-            if (!alertSelected) {
-              e.currentTarget.style.background = "#F5F5F5"; // Gris suave en hover
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!alertSelected) {
-              e.currentTarget.style.background = "#fff"; // Volver al blanco
-            }
+            position: "absolute",
+            bottom: 16,
+            left: 16,
+            zIndex: 2,
+            pointerEvents: "auto",
+            cursor: "pointer",
+            padding: 0,
+            border: "none",
+            background: "none",
           }}
         >
-          <span
-            role="img"
-            aria-label="Alerta"
+          <div
             style={{
-              fontSize: "20px",
-              display: "block",
+              padding: "3px",
+              borderRadius: "4px",
+              border: "1px solid #DDDDDD",
+              width: "25px",
+              height: "25px",
+              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+              background: alertSelected ? "#cae5fa" : "#fff", // Gris azulado claro cuando seleccionado
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "background-color 0.2s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (!alertSelected) {
+                e.currentTarget.style.background = "#F5F5F5"; // Gris suave en hover
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!alertSelected) {
+                e.currentTarget.style.background = "#fff"; // Volver al blanco
+              }
             }}
           >
-            🚨
-          </span>
-        </div>
-      </button>
+            <span
+              role="img"
+              aria-label="Alerta"
+              style={{
+                fontSize: "20px",
+                display: "block",
+              }}
+            >
+              🚨
+            </span>
+          </div>
+        </button>
+      )}
     </div>
   );
 };
