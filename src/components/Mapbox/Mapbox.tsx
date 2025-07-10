@@ -27,12 +27,30 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { mapPoint } from "./MapPoint.types";
 import { useMapContext } from "../../contexts/MapContext";
 import { memo } from "react";
+import type { Point } from "../../utils/generateRandomPoints";
+
+// Utility function for debouncing
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // 📌 SECTION: Component Types & Props
@@ -40,7 +58,7 @@ import { memo } from "react";
 
 type MapBoxProps = {
   onPointClick?: (properties: any) => void;
-  mapPoints: mapPoint[];
+  mapPoints: Point[];
   initialZoom?: number;
   flyToPoint?: (point: mapPoint) => void;
   staticMap: boolean;
@@ -68,12 +86,33 @@ const MapBox = ({
   const mapContainer = useRef(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const points = mapPoints || [];
-  //  search functionality
+
+  // Search functionality with optimization
   const [searchTerm, setSearchTerm] = useState("");
-  const [results, setResults] = useState<mapPoint[]>([]);
+  const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [alertSelected, setAlertSelected] = useState(false);
+
+  // Debounced search term to prevent excessive filtering
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+  // Memoized search results to prevent recalculation
+  const filteredResults = useMemo(() => {
+    if (!debouncedSearchTerm.trim()) return [];
+
+    return points
+      .filter((point: Point) =>
+        point.station.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+      )
+      .slice(0, 50); // Limit results to first 50 for performance
+  }, [points, debouncedSearchTerm]);
+
+  // Update results when filtered results change
+  useEffect(() => {
+    setResults(filteredResults);
+    setIsSearching(debouncedSearchTerm.trim() !== "");
+    setHighlightedIndex(-1);
+  }, [filteredResults, debouncedSearchTerm]);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Search bar Utilities
@@ -82,53 +121,46 @@ const MapBox = ({
   /* -------------------------------------------------------------------------- */
   /* 📍 FUNCTION: handleChange                                                  */
   /* -------------------------------------------------------------------------- */
-  // Description : Handles input change and filters results in real-time
+  // Description : Handles input change with optimized debounced filtering
   // Parameters  :
   //    - event: React.ChangeEvent<HTMLInputElement> → Input change event
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSearchTerm(value);
-    setHighlightedIndex(-1);
+  const handleChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setSearchTerm(value);
+      setHighlightedIndex(-1);
 
-    if (value.trim() === "") {
-      setResults([]);
-      setIsSearching(false);
-    } else {
-      setIsSearching(true);
-      const filteredResults = points.filter((point) =>
-        point.station.toLowerCase().includes(value.toLowerCase())
-      );
-      setResults(filteredResults);
-    }
-  };
+      // Clear results immediately when input is empty
+      if (value.trim() === "") {
+        setResults([]);
+        setIsSearching(false);
+      }
+    },
+    []
+  );
 
   /* -------------------------------------------------------------------------- */
   /* 📍 FUNCTION: handleSearch                                                  */
   /* -------------------------------------------------------------------------- */
-  // Description : Executes search and flies to the first matching result
+  // Description : Executes search and flies to the first matching result (optimized)
   // Parameters  : none (uses searchTerm state)
   // Returns     : void (triggers map flyTo animation)
   // Usage       : Called when Enter key is pressed or search is triggered
-  // Notes       : Clears search UI and focuses on first result with enhanced zoom
+  // Notes       : Uses pre-filtered results for better performance
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded() || !searchTerm.trim()) return;
 
-    // ─── 1️⃣ Filter points based on search term ─────────────────────────────
-    const filteredResults = points.filter((point) =>
-      point.station.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
+    // Use already filtered results instead of filtering again
     if (filteredResults.length > 0) {
       const firstResult = filteredResults[0];
 
       // ─── 2️⃣ Fly to the first result with smooth animation ──────────────────
       map.flyTo({
         center: [firstResult.gps[0], firstResult.gps[1]],
-
-        zoom: (initialZoom || 12) + 3,
+        zoom: initialZoom || 12 + 3,
         speed: map.getZoom() < 12 ? 0.55 : 0.7,
         curve: 1,
         essential: true,
@@ -142,7 +174,7 @@ const MapBox = ({
         onPointClick(firstResult);
       }
     }
-  };
+  }, [searchTerm, filteredResults, initialZoom, onPointClick]);
 
   /* -------------------------------------------------------------------------- */
   /* 📍 FUNCTION: handleKeyDown                                                 */
@@ -186,46 +218,49 @@ const MapBox = ({
   /* -------------------------------------------------------------------------- */
   /* 📍 FUNCTION: handleResultClick                                             */
   /* -------------------------------------------------------------------------- */
-  // Description : Handles clicking on a search result item
+  // Description : Handles clicking on a search result item (optimized)
   // Parameters  :
   //    - point: mapPoint → The selected map point
   // Returns     : void (triggers map animation and callbacks)
   // Usage       : Called when user clicks on search result
   // Notes       : Flies to point, clears search, and triggers point click callback
 
-  const handleResultClick = (point: mapPoint) => {
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
+  const handleResultClick = useCallback(
+    (point: Point) => {
+      const map = mapRef.current;
+      if (!map || !map.isStyleLoaded()) return;
 
-    // ─── 1️⃣ Fly to selected point ───────────────────────────────────────────
-    map.flyTo({
-      center: [point.gps[0], point.gps[1]],
-      bearing: 0,
-      zoom: (initialZoom || 12) + 3,
-      speed: map.getZoom() < 12 ? 0.55 : 0.7,
-      curve: 1,
-      essential: true,
-    });
+      // ─── 1️⃣ Fly to selected point ───────────────────────────────────────────
+      map.flyTo({
+        center: [point.gps[0], point.gps[1]],
+        bearing: 0,
+        zoom: 15,
+        speed: map.getZoom() < 12 ? 0.8 : 0.7,
+        curve: 1,
+        essential: true,
+      });
 
-    // ─── 2️⃣ Clear search UI ─────────────────────────────────────────────────
-    clearSearch();
-  };
+      // ─── 2️⃣ Clear search UI ─────────────────────────────────────────────────
+      clearSearch();
+    },
+    [initialZoom]
+  );
 
   /* -------------------------------------------------------------------------- */
   /* 📍 FUNCTION: clearSearch                                                   */
   /* -------------------------------------------------------------------------- */
-  // Description : Clears all search-related state
+  // Description : Clears all search-related state (optimized)
   // Parameters  : none
   // Returns     : void (resets search state)
   // Usage       : Called when clearing search or after successful selection
   // Notes       : Resets search term, results, and highlighted index
 
-  const clearSearch = () => {
+  const clearSearch = useCallback(() => {
     setSearchTerm("");
     setResults([]);
     setIsSearching(false);
     setHighlightedIndex(-1);
-  };
+  }, []);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Static Map Utilities
@@ -271,83 +306,6 @@ const MapBox = ({
   };
 
   ////////////////////////////////////////////////////////////////////////////////
-  // 📌 SECTION: Dynamic Animation Utilities
-  ////////////////////////////////////////////////////////////////////////////////
-
-  /* -------------------------------------------------------------------------- */
-  /* 📍 FUNCTION: createPulsingDot                                              */
-  /* -------------------------------------------------------------------------- */
-  // Description : Creates a pulsing dot animation for red (critical) points
-  // Parameters  :
-  //    - size: number → Size of the pulsing dot in pixels (default: 100)
-  //    - map: maplibregl.Map → Map instance to trigger repaints
-  // Returns     : object → Pulsing dot image object for MapLibre
-  // Usage       : const pulsingDot = createPulsingDot(100, mapInstance)
-  // Notes       : Creates smooth pulsing animation for critical status indicators
-
-  const createPulsingDot = (size: number = 200, map: maplibregl.Map) => {
-    return {
-      width: size,
-      height: size,
-      data: new Uint8Array(size * size * 4),
-      context: null as CanvasRenderingContext2D | null,
-
-      // ─── 1️⃣ Get rendering context for the map canvas when layer is added ──
-      onAdd() {
-        const canvas = document.createElement("canvas");
-        canvas.width = this.width;
-        canvas.height = this.height;
-        this.context = canvas.getContext("2d");
-      },
-
-      // ─── 2️⃣ Called once before every frame where the icon will be used ────
-      render() {
-        const duration = 1000;
-        const t = (performance.now() % duration) / duration;
-
-        const radius = (size / 2) * 0.3;
-        const outerRadius = (size / 2) * 0.7 * t + radius;
-        const context = this.context;
-
-        // Early return if context is not available
-        if (!context) return false;
-
-        // ─── 3️⃣ Draw outer pulsing circle ──────────────────────────────────
-        context.clearRect(0, 0, this.width, this.height);
-        context.beginPath();
-        context.arc(
-          this.width / 2,
-          this.height / 2,
-          outerRadius,
-          0,
-          Math.PI * 2
-        );
-        context.fillStyle = `rgba(255, 0, 0,${0.3 * (1 - t)})`;
-        context.fill();
-
-        // ─── 4️⃣ Draw inner circle with stroke ──────────────────────────────
-        context.beginPath();
-        context.arc(this.width / 2, this.height / 2, radius, 0, Math.PI * 2);
-        context.fillStyle = "#B4202A";
-        context.strokeStyle = "white";
-        context.lineWidth = 2 + 4 * (1 - t);
-        context.fill();
-        context.stroke();
-
-        // ─── 5️⃣ Update image data from canvas ──────────────────────────────
-        const imageData = context.getImageData(0, 0, this.width, this.height);
-        this.data = new Uint8Array(imageData.data);
-
-        // ─── 6️⃣ Continuously repaint for smooth animation ──────────────────
-        map.triggerRepaint();
-
-        // Return true to indicate the image was updated
-        return true;
-      },
-    };
-  };
-
-  ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Interactive Map Layer Management
   ////////////////////////////////////////////////////////////////////////////////
 
@@ -362,16 +320,16 @@ const MapBox = ({
   // Notes       : Creates 3 layers: green, red (with pulsing animation), yellow
 
   const addPointLayers = (map: maplibregl.Map) => {
-    // ─── 1️⃣ Add pulsing dot image for red points (larger size) ──────────────
-    const pulsingDot = createPulsingDot(350, map);
-    map.addImage("pulsing-dot", pulsingDot, { pixelRatio: 2 });
-
-    // ─── 2️⃣ Layer: GREEN status points (circles) ────────────────────────────
+    // ─── 1️⃣ Layer: GREEN status points (circles) ────────────────────────────
     map.addLayer({
       id: "points_green",
       type: "circle",
       source: "points",
-      filter: ["==", ["get", "status"], "green"],
+      filter: [
+        "all",
+        ["==", ["get", "status"], "green"],
+        ["!", ["has", "point_count"]],
+      ],
       paint: {
         "circle-radius": [
           "interpolate",
@@ -431,13 +389,16 @@ const MapBox = ({
       },
     });
 
-    // ─── 3️⃣ Layer: RED status points (initial static circles) ───────────────
-    // Note: Will be replaced by useEffect based on alertSelected state
+    // ─── 2️⃣ Layer: RED status points (circles) ──────────────────────────────
     map.addLayer({
       id: "points_red",
       type: "circle",
       source: "points",
-      filter: ["==", ["get", "status"], "red"],
+      filter: [
+        "all",
+        ["==", ["get", "status"], "red"],
+        ["!", ["has", "point_count"]],
+      ],
       paint: {
         "circle-radius": [
           "interpolate",
@@ -497,12 +458,16 @@ const MapBox = ({
       },
     });
 
-    // ─── 4️⃣ Layer: YELLOW status points (circles) ───────────────────────────
+    // ─── 3️⃣ Layer: YELLOW status points (circles) ───────────────────────────
     map.addLayer({
       id: "points_yellow",
       type: "circle",
       source: "points",
-      filter: ["==", ["get", "status"], "yellow"],
+      filter: [
+        "all",
+        ["==", ["get", "status"], "yellow"],
+        ["!", ["has", "point_count"]],
+      ],
       paint: {
         "circle-radius": [
           "interpolate",
@@ -579,7 +544,11 @@ const MapBox = ({
       id: "numbers_green",
       type: "symbol",
       source: "points",
-      filter: ["==", ["get", "status"], "green"],
+      filter: [
+        "all",
+        ["==", ["get", "status"], "green"],
+        ["!", ["has", "point_count"]],
+      ],
       layout: {
         "text-field": ["get", "randomNumber"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
@@ -627,13 +596,16 @@ const MapBox = ({
       },
     });
 
-    // ─── 2️⃣ Number layer: RED points (initial static version) ───────────────
-    // Note: Will be replaced by useEffect based on alertSelected state
+    // ─── 2️⃣ Number layer: RED points ────────────────────────────────────────
     map.addLayer({
       id: "numbers_red",
       type: "symbol",
       source: "points",
-      filter: ["==", ["get", "status"], "red"],
+      filter: [
+        "all",
+        ["==", ["get", "status"], "red"],
+        ["!", ["has", "point_count"]],
+      ],
       layout: {
         "text-field": ["get", "randomNumber"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
@@ -686,7 +658,11 @@ const MapBox = ({
       id: "numbers_yellow",
       type: "symbol",
       source: "points",
-      filter: ["==", ["get", "status"], "yellow"],
+      filter: [
+        "all",
+        ["==", ["get", "status"], "yellow"],
+        ["!", ["has", "point_count"]],
+      ],
       layout: {
         "text-field": ["get", "randomNumber"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
@@ -745,39 +721,170 @@ const MapBox = ({
   // Usage       : addMapEvents(mapInstance)
   // Notes       : Handles cursor change on hover and click events for point selection
 
-  const addMapEvents = (map: maplibregl.Map) => {
-    // ─── 1️⃣ Define interactive layer IDs ────────────────────────────────────
-    const pointLayers = ["points_green", "points_red", "points_yellow"];
-    const numberLayers = ["numbers_green", "numbers_red", "numbers_yellow"];
-    const allInteractiveLayers = [...pointLayers, ...numberLayers];
+  const addMapEvents = useCallback(
+    (map: maplibregl.Map) => {
+      // ─── 1️⃣ Define interactive layer IDs ────────────────────────────────────
+      const pointLayers = ["points_green", "points_red", "points_yellow"];
+      const numberLayers = ["numbers_green", "numbers_red", "numbers_yellow"];
+      const allInteractiveLayers = [...pointLayers, ...numberLayers];
 
-    allInteractiveLayers.forEach((layerId) => {
-      // ─── 2️⃣ Mouse enter event: Change cursor to pointer ───────────────────
-      map.on("mouseenter", layerId, () => {
-        map.getCanvas().style.cursor = "pointer";
+      allInteractiveLayers.forEach((layerId) => {
+        // ─── 2️⃣ Mouse enter event: Change cursor to pointer ───────────────────
+        map.on("mouseenter", layerId, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+
+        // ─── 3️⃣ Mouse leave event: Reset cursor ───────────────────────────────
+        map.on("mouseleave", layerId, () => {
+          map.getCanvas().style.cursor = "";
+        });
+
+        // ─── 4️⃣ Click event: Handle point selection ───────────────────────────
+        map.on("click", layerId, (e: any) => {
+          const feature = e.features![0];
+          const properties = feature.properties;
+
+          // Find the original point by serialNumber to get complete data
+          const originalPoint = points.find(
+            (p: Point) => p.serialNumber === properties.serialNumber
+          );
+
+          if (onPointClick && originalPoint) {
+            onPointClick(originalPoint);
+          }
+        });
       });
+    },
+    [points, onPointClick]
+  );
 
-      // ─── 3️⃣ Mouse leave event: Reset cursor ───────────────────────────────
-      map.on("mouseleave", layerId, () => {
-        map.getCanvas().style.cursor = "";
-      });
+  /* -------------------------------------------------------------------------- */
+  /* 📍 FUNCTION: addClusterLayers                                             */
+  /* -------------------------------------------------------------------------- */
+  // Description : Adds cluster layers for better performance with large datasets
+  // Parameters  :
+  //    - map: maplibregl.Map → The map instance to add cluster layers to
+  // Returns     : void (modifies map by adding cluster layers)
+  // Usage       : addClusterLayers(mapInstance)
+  // Notes       : Creates clusters for points when zoomed out, individual points when zoomed in
 
-      // ─── 4️⃣ Click event: Handle point selection ───────────────────────────
-      map.on("click", layerId, (e: any) => {
-        const feature = e.features![0];
-        const properties = feature.properties;
-
-        // Find the original point by serialNumber to get complete data
-        const originalPoint = points.find(
-          (p: mapPoint) => p.serialNumber === properties.serialNumber
-        );
-
-        if (onPointClick && originalPoint) {
-          onPointClick(originalPoint);
-        }
-      });
+  const addClusterLayers = useCallback((map: maplibregl.Map) => {
+    // ─── 1️⃣ Cluster circles layer (only visible at low zoom levels) ───────────
+    map.addLayer({
+      id: "clusters",
+      type: "circle",
+      source: "points",
+      filter: ["has", "point_count"],
+      paint: {
+        "circle-color": [
+          "step",
+          ["get", "point_count"],
+          "#51bbd6", // Color for small clusters
+          100,
+          "#f1f075", // Color for medium clusters
+          750,
+          "#f28cb1", // Color for large clusters
+        ],
+        "circle-radius": [
+          "step",
+          ["get", "point_count"],
+          20, // Radius for small clusters
+          100,
+          30, // Radius for medium clusters
+          750,
+          40, // Radius for large clusters
+        ],
+        "circle-stroke-width": 2,
+        "circle-stroke-color": "#ffffff",
+      },
     });
-  };
+
+    // ─── 2️⃣ Cluster count labels (only visible at low zoom levels) ──────────
+    map.addLayer({
+      id: "cluster-count",
+      type: "symbol",
+      source: "points",
+      filter: ["has", "point_count"],
+      layout: {
+        "text-field": "{point_count_abbreviated}",
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": 14,
+      },
+      paint: {
+        "text-color": "#ffffff",
+      },
+    });
+
+    // ─── 3️⃣ Cluster click events for zoom ───────────────────────────────────
+    map.on("click", "clusters", (e) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["clusters"],
+      });
+      const clusterId = features[0].properties!.cluster_id;
+      const source = map.getSource("points") as maplibregl.GeoJSONSource;
+
+      // Use Promise-based approach for getClusterExpansionZoom
+      source
+        .getClusterExpansionZoom(clusterId)
+        .then((zoom: number) => {
+          map.easeTo({
+            center: (features[0].geometry as any).coordinates,
+            zoom: zoom,
+          });
+        })
+        .catch((err) => {
+          console.error("Error getting cluster expansion zoom:", err);
+        });
+    });
+
+    // ─── 4️⃣ Change cursor on cluster hover ──────────────────────────────────
+    map.on("mouseenter", "clusters", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "clusters", () => {
+      map.getCanvas().style.cursor = "";
+    });
+  }, []);
+
+  // Memoized GeoJSON data to prevent recreation on every render
+  const geoJsonData = useMemo(() => {
+    // Filter points based on active filters
+    const filteredPoints = points.filter((p: Point) => {
+      switch (p.status) {
+        case "green":
+          return filters.green;
+        case "red":
+          return filters.red;
+        case "yellow":
+          return filters.yellow;
+        default:
+          return true;
+      }
+    });
+
+    return {
+      type: "FeatureCollection" as const,
+      features: filteredPoints.map((p: Point) => {
+        // Create a stable random number based on serialNumber to prevent re-renders
+        const stableRandom =
+          ((parseInt(p.serialNumber.toString()) || 0) % 90) + 1;
+
+        return {
+          type: "Feature" as const,
+          geometry: {
+            type: "Point" as const,
+            coordinates: [p.gps[0], p.gps[1]],
+          },
+          properties: {
+            serialNumber: p.serialNumber,
+            station: p.station,
+            status: p.status,
+            randomNumber: stableRandom,
+          },
+        };
+      }),
+    };
+  }, [points, filters]);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Interactive Map Creation
@@ -793,7 +900,7 @@ const MapBox = ({
   // Usage       : Called when staticMap prop is false
   // Notes       : Includes point layers, number overlays, and interaction events
 
-  const createInteractiveMap = () => {
+  const createInteractiveMap = useCallback(() => {
     // ─── 1️⃣ Initialize interactive map instance ─────────────────────────────
     const map = new maplibregl.Map({
       container: mapContainer.current!,
@@ -801,45 +908,52 @@ const MapBox = ({
         "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
       center: [-1.1307, 37.987], // Center of Murcia, Spain
       zoom: initialZoom || 12, // Default zoom level
-      pixelRatio: Math.min(window.devicePixelRatio || 1, 2), // ← Añadir para mejor calidad
-      fadeDuration: 300, // ← Transiciones más suaves
+      pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+      fadeDuration: 300,
     });
 
     mapRef.current = map;
 
     // ─── 2️⃣ Setup map data and layers after load ───────────────────────────
     map.on("load", () => {
-      // Add GeoJSON source with all map points
-      map.addSource("points", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: points.map((p: mapPoint) => ({
-            type: "Feature",
+      // Add GeoJSON source with all points initially (filtering will be handled separately)
+      const allPointsData = {
+        type: "FeatureCollection" as const,
+        features: points.map((p: Point) => {
+          const stableRandom =
+            ((parseInt(p.serialNumber.toString()) || 0) % 90) + 1;
+
+          return {
+            type: "Feature" as const,
             geometry: {
-              type: "Point",
-              coordinates: [p.gps[0], p.gps[1]], // [longitude, latitude]
+              type: "Point" as const,
+              coordinates: [p.gps[0], p.gps[1]],
             },
             properties: {
               serialNumber: p.serialNumber,
               station: p.station,
-              installationDate: p.installationDate,
-              brand: p.brand,
-              model: p.model,
               status: p.status,
-              // Generate random number for display (1-90)
-              randomNumber: Math.floor(Math.random() * 90) + 1,
+              randomNumber: stableRandom,
             },
-          })),
-        },
+          };
+        }),
+      };
+
+      map.addSource("points", {
+        type: "geojson",
+        data: allPointsData,
+        cluster: true,
+        clusterMaxZoom: 14, // Max zoom to cluster points on
+        clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)
       });
 
-      // ─── 3️⃣ Add all map layers and interactions ─────────────────────────
+      // ─── 3️⃣ Add cluster layers for performance ─────────────────────────
+      addClusterLayers(map);
       addPointLayers(map);
       addNumberLayers(map);
       addMapEvents(map);
     });
-  };
+  }, [points, addClusterLayers, addMapEvents]); // Only depend on points, not geoJsonData
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: React Effects & Lifecycle
@@ -862,15 +976,15 @@ const MapBox = ({
 
     // Cleanup function to remove map instance
     return () => mapRef.current?.remove();
-  }, [staticMap, points, onPointClick, center, initialZoom]);
+  }, [staticMap, center, initialZoom]); // Removed createInteractiveMap from dependencies
 
   /* -------------------------------------------------------------------------- */
-  /* 📍 EFFECT: Filter Management                                               */
+  /* 📍 EFFECT: Filter Management (Optimized)                                  */
   /* -------------------------------------------------------------------------- */
-  // Description : Applies visibility filters to map layers based on filter state
-  // Dependencies: filters, staticMap
-  // Purpose     : Shows/hides point layers based on user filter selections
-  // Notes       : Only applies to interactive maps, static maps ignore filters
+  // Description : Updates map data source based on filter state
+  // Dependencies: filters, staticMap, geoJsonData
+  // Purpose     : Updates cluster and point data based on user filter selections
+  // Notes       : Only applies to interactive maps, updates data source directly
 
   useEffect(() => {
     // Skip filter application for static maps
@@ -879,311 +993,12 @@ const MapBox = ({
     const map = mapRef.current;
     if (!map || !map.isStyleLoaded()) return;
 
-    // ─── 1️⃣ Apply GREEN filter ──────────────────────────────────────────────
-    map.setLayoutProperty(
-      "points_green",
-      "visibility",
-      filters.green ? "visible" : "none"
-    );
-    map.setLayoutProperty(
-      "numbers_green",
-      "visibility",
-      filters.green ? "visible" : "none"
-    );
-
-    // ─── 2️⃣ Apply RED filter (pulsing dots + numbers) ───────────────────────
-    map.setLayoutProperty(
-      "points_red",
-      "visibility",
-      filters.red ? "visible" : "none"
-    );
-    map.setLayoutProperty(
-      "numbers_red",
-      "visibility",
-      filters.red ? "visible" : "none"
-    );
-
-    // ─── 3️⃣ Apply YELLOW filter ─────────────────────────────────────────────
-    map.setLayoutProperty(
-      "points_yellow",
-      "visibility",
-      filters.yellow ? "visible" : "none"
-    );
-    map.setLayoutProperty(
-      "numbers_yellow",
-      "visibility",
-      filters.yellow ? "visible" : "none"
-    );
-  }, [filters, staticMap]);
-
-  /* -------------------------------------------------------------------------- */
-  /* 📍 EFFECT: Alert Button Layer Toggle                                       */
-  /* -------------------------------------------------------------------------- */
-  // Description : Updates red point layers when alertSelected state changes
-  // Dependencies: alertSelected, staticMap
-  // Purpose     : Switches between static circles and pulsing animation for red points
-  // Notes       : Only applies to interactive maps, recreates red point layers
-
-  useEffect(() => {
-    // Skip for static maps
-    if (staticMap) return;
-
-    const map = mapRef.current;
-    if (!map || !map.isStyleLoaded()) return;
-
-    // ─── 1️⃣ Remove existing red point layers ────────────────────────────────
-    if (map.getLayer("points_red")) {
-      map.removeLayer("points_red");
+    // Update the data source with filtered data
+    const source = map.getSource("points") as maplibregl.GeoJSONSource;
+    if (source) {
+      source.setData(geoJsonData);
     }
-    if (map.getLayer("numbers_red")) {
-      map.removeLayer("numbers_red");
-    }
-
-    // ─── 2️⃣ Add red point layer based on alert state ───────────────────────
-    if (alertSelected) {
-      // Add pulsing red points
-      map.addLayer({
-        id: "points_red",
-        type: "symbol",
-        source: "points",
-        filter: ["==", ["get", "status"], "red"],
-        layout: {
-          "icon-image": "pulsing-dot",
-          "icon-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            0.25,
-            7.23,
-            0.45,
-            9,
-            0.5,
-            11,
-            0.6,
-            13,
-            0.7,
-            15,
-            0.8,
-            18,
-            1.0,
-          ],
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-        },
-      });
-
-      // Add numbers for pulsing red points
-      map.addLayer({
-        id: "numbers_red",
-        type: "symbol",
-        source: "points",
-        filter: ["==", ["get", "status"], "red"],
-        layout: {
-          "text-field": ["get", "randomNumber"],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            6,
-            7.23,
-            10,
-            9,
-            11,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            18,
-            18,
-          ],
-          "text-anchor": "center",
-          "text-justify": "center",
-          "text-allow-overlap": true,
-          "text-ignore-placement": true,
-        },
-        paint: {
-          "text-color": "#ffffff",
-          "text-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            0.2,
-            6.5,
-            0.4,
-            7.23,
-            1,
-            18,
-            1,
-          ],
-        },
-      });
-    } else {
-      // Add static red circles
-      map.addLayer({
-        id: "points_red",
-        type: "circle",
-        source: "points",
-        filter: ["==", ["get", "status"], "red"],
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            4,
-            7.23,
-            12,
-            9,
-            14,
-            11,
-            16,
-            13,
-            18,
-            15,
-            20,
-            18,
-            22,
-          ],
-          "circle-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            0.2,
-            6.5,
-            0.4,
-            7.23,
-            1,
-            18,
-            1,
-          ],
-          "circle-color": "#B4202A",
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            1,
-            7.23,
-            2,
-            11,
-            2.5,
-            15,
-            3,
-            18,
-            3.5,
-          ],
-        },
-      });
-
-      // Add numbers for static red circles
-      map.addLayer({
-        id: "numbers_red",
-        type: "symbol",
-        source: "points",
-        filter: ["==", ["get", "status"], "red"],
-        layout: {
-          "text-field": ["get", "randomNumber"],
-          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-          "text-size": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            6,
-            7.23,
-            10,
-            9,
-            11,
-            11,
-            12,
-            13,
-            14,
-            15,
-            16,
-            18,
-            18,
-          ],
-          "text-anchor": "center",
-          "text-justify": "center",
-        },
-        paint: {
-          "text-color": "#ffffff",
-          "text-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            5,
-            0,
-            6,
-            0.2,
-            6.5,
-            0.4,
-            7.23,
-            1,
-            18,
-            1,
-          ],
-        },
-      });
-    }
-
-    // ─── 3️⃣ Re-add event listeners for the new red layers ──────────────────
-    const redLayers = ["points_red", "numbers_red"];
-    redLayers.forEach((layerId) => {
-      map.on("mouseenter", layerId, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-
-      map.on("mouseleave", layerId, () => {
-        map.getCanvas().style.cursor = "";
-      });
-
-      map.on("click", layerId, (e: any) => {
-        const feature = e.features![0];
-        const properties = feature.properties;
-        const originalPoint = points.find(
-          (p: mapPoint) => p.serialNumber === properties.serialNumber
-        );
-        if (onPointClick && originalPoint) {
-          onPointClick(originalPoint);
-        }
-      });
-    });
-
-    // ─── 4️⃣ Apply current filter state to new layers ───────────────────────
-    map.setLayoutProperty(
-      "points_red",
-      "visibility",
-      filters.red ? "visible" : "none"
-    );
-    map.setLayoutProperty(
-      "numbers_red",
-      "visibility",
-      filters.red ? "visible" : "none"
-    );
-  }, [alertSelected, staticMap, filters.red, onPointClick, points]);
+  }, [geoJsonData, staticMap]);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Component Render
@@ -1250,14 +1065,16 @@ const MapBox = ({
                 overflowY: "auto",
               }}
             >
-              {results.map((point, index) => (
+              {results.slice(0, 20).map((point, index) => (
                 <div
                   key={point.serialNumber}
                   style={{
                     padding: "8px 12px",
                     cursor: "pointer",
                     borderBottom:
-                      index < results.length - 1 ? "1px solid #F0F0F0" : "none",
+                      index < Math.min(results.length, 20) - 1
+                        ? "1px solid #F0F0F0"
+                        : "none",
                     backgroundColor:
                       index === highlightedIndex ? "#F5F5F5" : "#fff",
                     transition: "background-color 0.2s ease",
@@ -1281,7 +1098,6 @@ const MapBox = ({
                   <div
                     style={{
                       fontSize: "10px",
-
                       marginTop: "2px",
                       fontWeight: "bold",
                     }}
@@ -1305,6 +1121,20 @@ const MapBox = ({
                   </div>
                 </div>
               ))}
+              {results.length > 20 && (
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    textAlign: "center",
+                    fontSize: "12px",
+                    color: "#666",
+                    fontStyle: "italic",
+                    borderTop: "1px solid #F0F0F0",
+                  }}
+                >
+                  Showing first 20 of {results.length} results
+                </div>
+              )}
             </div>
           )}
 
@@ -1332,64 +1162,19 @@ const MapBox = ({
           )}
         </div>
       )}
-
-      {/* ─── 3️⃣ Alert Button (Interactive Maps Only) ───────────────────────── */}
-      {!staticMap && (
-        <button
-          type="button"
-          onClick={() => setAlertSelected(!alertSelected)}
-          style={{
-            position: "absolute",
-            bottom: 16,
-            left: 16,
-            zIndex: 2,
-            pointerEvents: "auto",
-            cursor: "pointer",
-            padding: 0,
-            border: "none",
-            background: "none",
-          }}
-        >
-          <div
-            style={{
-              padding: "3px",
-              borderRadius: "4px",
-              border: "1px solid #DDDDDD",
-              width: "25px",
-              height: "25px",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-              background: alertSelected ? "#cae5fa" : "#fff", // Gris azulado claro cuando seleccionado
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background-color 0.2s ease",
-            }}
-            onMouseEnter={(e) => {
-              if (!alertSelected) {
-                e.currentTarget.style.background = "#F5F5F5"; // Gris suave en hover
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!alertSelected) {
-                e.currentTarget.style.background = "#fff"; // Volver al blanco
-              }
-            }}
-          >
-            <span
-              role="img"
-              aria-label="Alerta"
-              style={{
-                fontSize: "20px",
-                display: "block",
-              }}
-            >
-              🚨
-            </span>
-          </div>
-        </button>
-      )}
     </div>
   );
 };
 
-export default memo(MapBox);
+export default memo(MapBox, (prevProps, nextProps) => {
+  // Optimized comparison for memo to prevent unnecessary re-renders
+  return (
+    prevProps.staticMap === nextProps.staticMap &&
+    prevProps.initialZoom === nextProps.initialZoom &&
+    prevProps.mapPoints.length === nextProps.mapPoints.length &&
+    prevProps.onPointClick === nextProps.onPointClick &&
+    JSON.stringify(prevProps.center) === JSON.stringify(nextProps.center) &&
+    // Check if the actual point data hasn't changed (shallow comparison for performance)
+    prevProps.mapPoints === nextProps.mapPoints
+  );
+});

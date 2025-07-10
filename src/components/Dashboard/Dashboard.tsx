@@ -1,10 +1,10 @@
 import styles from "./Dashboard.module.css";
 import { useMapContext } from "../../contexts/MapContext";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useMemo } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
-import MapboxV2 from "../Mapbox/Mapbox";
-import pointsData from "../Mapbox/points.json";
-import type { mapPoint } from "../Mapbox/MapPoint.types";
+
+import { generateRandomPoints } from "../../utils/generateRandomPoints";
+import Mapbox from "../Mapbox/Mapbox";
 
 const Dashboard = () => {
   const { mapElements, filters, setFilters } = useMapContext();
@@ -22,11 +22,8 @@ const Dashboard = () => {
     }));
   };
 
-  const extract_points_from_json = (): mapPoint[] => {
-    return pointsData as mapPoint[];
-  };
-
-  const points = extract_points_from_json();
+  // Memoized points generation to prevent re-renders and number randomization
+  const points = useMemo(() => generateRandomPoints(30000), []);
 
   const handlePointClick = useCallback((properties: any) => {
     setSelectedProperties(properties);
@@ -58,7 +55,7 @@ const Dashboard = () => {
         {/*Mapbox Container with Filters */}
         <div className={styles.mapSection}>
           <div className={styles.mapContainer}>
-            <MapboxV2
+            <Mapbox
               onPointClick={handlePointClick}
               staticMap={false}
               initialZoom={8}
@@ -193,7 +190,7 @@ const Dashboard = () => {
                   <div className={styles.stationPopupMapContainerMap}>
                     {selectedProperties?.gps &&
                     Array.isArray(selectedProperties.gps) ? (
-                      <MapboxV2
+                      <Mapbox
                         staticMap={true}
                         mapPoints={[selectedProperties]}
                         initialZoom={15}
