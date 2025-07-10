@@ -914,6 +914,15 @@ const MapBox = ({
 
     mapRef.current = map;
 
+    map.addControl(
+      new maplibregl.NavigationControl({
+        visualizePitch: true,
+        visualizeRoll: true,
+        showZoom: true,
+        showCompass: true,
+      })
+    );
+
     // ─── 2️⃣ Setup map data and layers after load ───────────────────────────
     map.on("load", () => {
       // Add GeoJSON source with all points initially (filtering will be handled separately)

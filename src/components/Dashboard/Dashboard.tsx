@@ -23,7 +23,7 @@ const Dashboard = () => {
   };
 
   // Memoized points generation to prevent re-renders and number randomization
-  const points = useMemo(() => generateRandomPoints(30000), []);
+  const points = useMemo(() => generateRandomPoints(50000), []);
 
   const handlePointClick = useCallback((properties: any) => {
     setSelectedProperties(properties);
