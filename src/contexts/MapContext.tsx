@@ -26,9 +26,7 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
   });
 
   return (
-    <MapContext.Provider
-      value={{ mapElements, filters, setFilters }}
-    >
+    <MapContext.Provider value={{ mapElements, filters, setFilters }}>
       {children}
     </MapContext.Provider>
   );
@@ -36,6 +34,7 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
 
 export const useMapContext = () => {
   const context = useContext(MapContext);
+
   if (!context)
     throw new Error("useMapContext debe usarse dentro de <MapProvider>");
   return context;

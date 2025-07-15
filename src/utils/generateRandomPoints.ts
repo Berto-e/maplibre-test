@@ -6,7 +6,7 @@ export type Point = {
 };
 
 const randomInRange = (min: number, max: number): number => {
-  return Math.random() * (max - min) + min;
+  return Math.random() * (max - min + 1) + min;
 };
 const STATUS_VALUES = ["green", "red", "yellow"];
 const MURCIA_COORDINATES = {

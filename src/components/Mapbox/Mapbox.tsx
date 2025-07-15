@@ -985,10 +985,10 @@ const MapBox = ({
 
     // Cleanup function to remove map instance
     return () => mapRef.current?.remove();
-  }, [staticMap, center, initialZoom]); // Removed createInteractiveMap from dependencies
+  }, [staticMap, center, initialZoom]);
 
   /* -------------------------------------------------------------------------- */
-  /* 📍 EFFECT: Filter Management (Optimized)                                  */
+  /* 📍 EFFECT: Filter Management                                               */
   /* -------------------------------------------------------------------------- */
   // Description : Updates map data source based on filter state
   // Dependencies: filters, staticMap, geoJsonData
@@ -1176,14 +1176,12 @@ const MapBox = ({
 };
 
 export default memo(MapBox, (prevProps, nextProps) => {
-  // Optimized comparison for memo to prevent unnecessary re-renders
   return (
     prevProps.staticMap === nextProps.staticMap &&
     prevProps.initialZoom === nextProps.initialZoom &&
     prevProps.mapPoints.length === nextProps.mapPoints.length &&
     prevProps.onPointClick === nextProps.onPointClick &&
     JSON.stringify(prevProps.center) === JSON.stringify(nextProps.center) &&
-    // Check if the actual point data hasn't changed (shallow comparison for performance)
     prevProps.mapPoints === nextProps.mapPoints
   );
 });
