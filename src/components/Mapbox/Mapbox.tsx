@@ -34,6 +34,9 @@ import type { mapPoint } from "./MapPoint.types";
 import { useMapContext } from "../../contexts/MapContext";
 import { memo } from "react";
 import type { Point } from "../../utils/generateRandomPoints";
+import PegmanContainer from "../StreetView/PegmanContainer";
+import "@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css";
+import { MaplibreTerradrawControl } from "@watergis/maplibre-gl-terradraw";
 
 // Utility function for debouncing
 const useDebounce = (value: string, delay: number) => {
@@ -92,6 +95,10 @@ const MapBox = ({
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [mapStyle, setMapStyle] = useState<number>(0);
+  const [pegmanCoordinates, setPegmanCoordinates] = useState<
+    [number, number] | null
+  >(null);
 
   // Debounced search term to prevent excessive filtering
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -228,6 +235,7 @@ const MapBox = ({
   const handleResultClick = useCallback(
     (point: Point) => {
       const map = mapRef.current;
+
       if (!map || !map.isStyleLoaded()) return;
 
       // ─── 1️⃣ Fly to selected point ───────────────────────────────────────────
@@ -910,18 +918,30 @@ const MapBox = ({
       zoom: initialZoom || 12, // Default zoom level
       pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
       fadeDuration: 300,
+      attributionControl: false,
     });
 
     mapRef.current = map;
 
-    map.addControl(
-      new maplibregl.NavigationControl({
-        visualizePitch: true,
-        visualizeRoll: true,
-        showZoom: true,
-        showCompass: true,
-      })
-    );
+    // No need to expose globally anymore - we'll pass as prop
+    // (window as any).maplibreMap = map;
+    /* Map Controls */
+
+    const draw = new MaplibreTerradrawControl({
+      modes: [
+        "linestring",
+        "polygon",
+        "rectangle",
+        "circle",
+        "select",
+        "delete-selection",
+        "delete",
+        "download",
+      ],
+      open: true,
+    });
+
+    map.addControl(draw, "top-right");
 
     // ─── 2️⃣ Setup map data and layers after load ───────────────────────────
     map.on("load", () => {
@@ -964,6 +984,50 @@ const MapBox = ({
     });
   }, [points, addClusterLayers, addMapEvents]); // Only depend on points, not geoJsonData
 
+  // Handle style change with transformStyle to preserve custom sources and layers
+  const handleStyleChange = useCallback(
+    (styleUrl: string, styleIndex: number) => {
+      if (mapStyle === styleIndex) return;
+
+      const map = mapRef.current;
+      if (!map) return;
+
+      // Change the style using transformStyle to preserve our custom data
+      map.setStyle(styleUrl, {
+        transformStyle: (previousStyle, nextStyle) => ({
+          ...nextStyle,
+          sources: {
+            ...nextStyle.sources,
+            // Preserve our custom points source if it exists
+            ...(previousStyle?.sources?.points && {
+              points: previousStyle.sources.points,
+            }),
+          },
+          layers: [
+            // Keep all layers from the new style
+            ...nextStyle.layers,
+            // Add back our custom layers if they existed in the previous style
+            ...(previousStyle?.layers || []).filter((layer) =>
+              [
+                "clusters",
+                "cluster-count",
+                "points_green",
+                "points_red",
+                "points_yellow",
+                "numbers_green",
+                "numbers_red",
+                "numbers_yellow",
+              ].includes(layer.id)
+            ),
+          ],
+        }),
+      });
+
+      setMapStyle(styleIndex);
+    },
+    [mapStyle]
+  );
+
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: React Effects & Lifecycle
   ////////////////////////////////////////////////////////////////////////////////
@@ -984,7 +1048,12 @@ const MapBox = ({
     }
 
     // Cleanup function to remove map instance
-    return () => mapRef.current?.remove();
+    return () => {
+      const map = mapRef.current;
+      if (map) {
+        map.remove();
+      }
+    };
   }, [staticMap, center, initialZoom]);
 
   /* -------------------------------------------------------------------------- */
@@ -1009,6 +1078,21 @@ const MapBox = ({
     }
   }, [geoJsonData, staticMap]);
 
+  useEffect(() => {
+    // Check if pegmanCoordinates is set and open Street View
+    if (pegmanCoordinates) {
+      // Open Google Street View in a new tab
+      const [lng, lat] = pegmanCoordinates;
+      const streetViewUrl = `https://www.google.com/maps/@${lat},${lng},3a,75y,90t/data=!3m8!1e1!3m6!1sAF1QipN7wADdLiLn02kTnYKWaL0ZCJNzPmGInfF1JHHb!2e10!3e11!6shttps:%2F%2Flh5.googleusercontent.com%2Fp%2FAF1QipN7wADdLiLn02kTnYKWaL0ZCJNzPmGInfF1JHHb%3Dw203-h100-k-no-pi-2.9338646-ya320.09116-ro-0.7834487-fo100!7i7776!8i3888`;
+
+      // Open in new window/tab
+      window.open(streetViewUrl, "_blank");
+
+      // Reset pegman coordinates after opening Street View
+      setPegmanCoordinates(null);
+    }
+  }, [pegmanCoordinates]);
+
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Component Render
   ////////////////////////////////////////////////////////////////////////////////
@@ -1027,149 +1111,246 @@ const MapBox = ({
       <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       {/* ─── 2️⃣ Search Overlay (Interactive Maps Only) ─────────────────────── */}
       {!staticMap && (
-        <div
-          id="mapbox-search"
-          style={{
-            position: "absolute",
-            top: 16,
-            left: 16,
-            zIndex: 2,
-            pointerEvents: "auto",
-          }}
-        >
-          {/* Search input */}
-          <input
-            id="search-input"
-            type="text"
-            placeholder="Buscar por estación..."
+        <>
+          <div
+            id="mapbox-search"
             style={{
-              fontFamily: "Outfit, sans-serif",
-              padding: "8px",
-              borderRadius: "4px",
-              border: "1px solid #DDDDDD",
-              width: "250px",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-              background: "#fff",
+              position: "absolute",
+              top: 16,
+              left: 16,
+              zIndex: 2,
+              pointerEvents: "auto",
             }}
-            value={searchTerm}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            autoComplete="off"
-          />
-
-          {/* Search results dropdown */}
-          {searchTerm && results.length > 0 && (
-            <div
+          >
+            {/* Search input */}
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Buscar por estación..."
               style={{
-                position: "absolute",
-                top: 40,
-                left: 0,
-                width: "250px",
-                background: "#fff",
-                border: "1px solid #DDD",
+                fontFamily: "Outfit, sans-serif",
+                padding: "8px",
                 borderRadius: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
-                zIndex: 3,
-                maxHeight: "220px",
-                overflowY: "auto",
+                border: "1px solid #DDDDDD",
+                width: "250px",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+                background: "#fff",
               }}
-            >
-              {results.slice(0, 20).map((point, index) => (
-                <div
-                  key={point.serialNumber}
-                  style={{
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    borderBottom:
-                      index < Math.min(results.length, 20) - 1
-                        ? "1px solid #F0F0F0"
-                        : "none",
-                    backgroundColor:
-                      index === highlightedIndex ? "#F5F5F5" : "#fff",
-                    transition: "background-color 0.2s ease",
-                  }}
-                  onClick={() => handleResultClick(point)}
-                  onMouseEnter={() => setHighlightedIndex(index)}
-                  onMouseLeave={() => setHighlightedIndex(-1)}
-                >
-                  <div style={{ fontWeight: "bold", fontSize: "14px" }}>
-                    {point.station}
+              value={searchTerm}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              autoComplete="off"
+            />
+
+            {/* Search results dropdown */}
+            {searchTerm && results.length > 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 40,
+                  left: 0,
+                  width: "250px",
+                  background: "#fff",
+                  border: "1px solid #DDD",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+                  zIndex: 3,
+                  maxHeight: "220px",
+                  overflowY: "auto",
+                }}
+              >
+                {results.slice(0, 20).map((point, index) => (
+                  <div
+                    key={point.serialNumber}
+                    style={{
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      borderBottom:
+                        index < Math.min(results.length, 20) - 1
+                          ? "1px solid #F0F0F0"
+                          : "none",
+                      backgroundColor:
+                        index === highlightedIndex ? "#F5F5F5" : "#fff",
+                      transition: "background-color 0.2s ease",
+                    }}
+                    onClick={() => handleResultClick(point)}
+                    onMouseEnter={() => setHighlightedIndex(index)}
+                    onMouseLeave={() => setHighlightedIndex(-1)}
+                  >
+                    <div style={{ fontWeight: "bold", fontSize: "14px" }}>
+                      {point.station}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        color: "#666",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {point.brand} • {point.model}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        marginTop: "2px",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      Status:{" "}
+                      <span
+                        style={{
+                          display: "inline-block",
+                          background:
+                            point.status === "green"
+                              ? "#289178"
+                              : point.status === "red"
+                              ? "#B4202A"
+                              : "#C67605",
+                          width: "11px",
+                          height: "11px",
+                          borderRadius: "50%",
+                          verticalAlign: "middle",
+                        }}
+                      ></span>
+                    </div>
                   </div>
+                ))}
+                {results.length > 20 && (
                   <div
                     style={{
+                      padding: "8px 12px",
+                      textAlign: "center",
                       fontSize: "12px",
                       color: "#666",
-                      marginTop: "2px",
+                      fontStyle: "italic",
+                      borderTop: "1px solid #F0F0F0",
                     }}
                   >
-                    {point.brand} • {point.model}
+                    Showing first 20 of {results.length} results
                   </div>
-                  <div
-                    style={{
-                      fontSize: "10px",
-                      marginTop: "2px",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    Status:{" "}
-                    <span
-                      style={{
-                        display: "inline-block",
-                        background:
-                          point.status === "green"
-                            ? "#289178"
-                            : point.status === "red"
-                            ? "#B4202A"
-                            : "#C67605",
-                        width: "11px",
-                        height: "11px",
-                        borderRadius: "50%",
-                        verticalAlign: "middle",
-                      }}
-                    ></span>
-                  </div>
-                </div>
-              ))}
-              {results.length > 20 && (
-                <div
-                  style={{
-                    padding: "8px 12px",
-                    textAlign: "center",
-                    fontSize: "12px",
-                    color: "#666",
-                    fontStyle: "italic",
-                    borderTop: "1px solid #F0F0F0",
-                  }}
-                >
-                  Showing first 20 of {results.length} results
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
 
-          {/* No results message  */}
-          {searchTerm && isSearching && results.length === 0 && (
+            {/* No results message  */}
+            {searchTerm && isSearching && results.length === 0 && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 40,
+                  left: 0,
+                  width: "250px",
+                  background: "#fff",
+                  border: "1px solid #DDD",
+                  borderRadius: "4px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+                  zIndex: 3,
+                  padding: "16px",
+                  textAlign: "center",
+                  color: "#666",
+                  fontSize: "14px",
+                }}
+              >
+                No stations found for "{searchTerm}"
+              </div>
+            )}
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 10,
+              left: 10,
+              width: "70px",
+              height: "40px",
+              background: "white",
+              zIndex: 3,
+              borderRadius: "4px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+              display: "flex",
+              padding: "5px", // aire dentro del contenedor
+              gap: "5px", // espacio entre hijos
+              boxSizing: "border-box", // para que el padding no rompa el tamaño
+            }}
+          >
+            {/* 🌐 Icono (global) */}
             <div
               style={{
-                position: "absolute",
-                top: 40,
-                left: 0,
-                width: "250px",
-                background: "#fff",
-                border: "1px solid #DDD",
-                borderRadius: "4px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
-                zIndex: 3,
-                padding: "16px",
-                textAlign: "center",
-                color: "#666",
-                fontSize: "14px",
+                cursor: "pointer",
+                background: mapStyle === 0 ? "#1b8ee057" : "#f1efef63",
+                flex: 1,
+                borderRadius: "3px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background 0.2s",
               }}
+              onClick={() =>
+                handleStyleChange(
+                  "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+                  0
+                )
+              }
             >
-              No stations found for "{searchTerm}"
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#444"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ display: "block" }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <ellipse cx="12" cy="12" rx="4" ry="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <line x1="12" y1="2" x2="12" y2="22" />
+              </svg>
             </div>
-          )}
-        </div>
+            {/* 🌍 Icono bola del mundo */}
+            <div
+              style={{
+                cursor: "pointer",
+                background: mapStyle === 1 ? "#1b8ee057" : "#f1efef63",
+                flex: 1,
+                borderRadius: "3px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onClick={() =>
+                handleStyleChange(
+                  "https://api.maptiler.com/maps/streets-v2/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+                  1
+                )
+              }
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#444"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ display: "block" }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12a10 10 0 0 0 20 0" />
+                <path d="M12 2a10 10 0 0 0 0 20" />
+                <ellipse cx="12" cy="12" rx="6" ry="10" />
+              </svg>
+            </div>
+          </div>
+          <PegmanContainer
+            mapInstance={mapRef.current}
+            onDropOnMap={(coordinates) => {
+              setPegmanCoordinates(coordinates);
+            }}
+          />
+        </>
       )}
     </div>
   );

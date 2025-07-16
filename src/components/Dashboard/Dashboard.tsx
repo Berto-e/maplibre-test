@@ -28,6 +28,7 @@ const Dashboard = () => {
   const handlePointClick = useCallback((properties: any) => {
     setSelectedProperties(properties);
     setShowPopup(true);
+    console.log(properties);
   }, []);
 
   return (
@@ -51,14 +52,13 @@ const Dashboard = () => {
         <h1 className={styles.title}>
           Contadores inteligentes <span>/ Panel de control</span>
         </h1>
-
         {/*Mapbox Container with Filters */}
         <div className={styles.mapSection}>
           <div className={styles.mapContainer}>
             <Mapbox
               onPointClick={handlePointClick}
               staticMap={false}
-              initialZoom={8}
+              initialZoom={4}
               mapPoints={points}
             />
           </div>
