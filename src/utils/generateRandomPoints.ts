@@ -43,5 +43,19 @@ export const generateRandomPoints = (numberOfPoints: number): Point[] => {
     });
   }
 
+  points.push({
+    serialNumber: numberOfPoints + 1,
+    station: "Station-duplicated-1",
+    status: "green",
+    gps: [-1.1309, 37.9854],
+  });
+
+  points.push({
+    serialNumber: numberOfPoints + 2,
+    station: "Station-duplicated-2",
+    status: "yellow",
+    gps: [-1.1309, 37.9854],
+  });
+
   return points;
 };

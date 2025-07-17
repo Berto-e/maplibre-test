@@ -60,6 +60,7 @@ const PegmanContainer = ({
     null
   );
   const lastXRef = useRef(0);
+  const pegmanShadowRef = useRef<HTMLDivElement>(null);
 
   // State to control which pegman image to show
   const [pegmanState, setPegmanState] = useState<
@@ -67,8 +68,78 @@ const PegmanContainer = ({
   >("static");
   const [isDraggingOutside, setIsDraggingOutside] = useState(false);
 
+  // Ref para guardar los colores originales de las calles
+  const originalRoadColorsRef = useRef<Map<string, string>>(new Map());
+
+  // Función para restaurar los colores originales de las calles
+  const restoreOriginalRoadColors = () => {
+    if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+
+    // Restaurar los colores originales guardados
+    originalRoadColorsRef.current.forEach((originalColor, layerId) => {
+      try {
+        if (mapInstance.getLayer(layerId)) {
+          mapInstance.setPaintProperty(layerId, "line-color", originalColor);
+        }
+      } catch (error) {
+        console.debug(`No se pudo restaurar color de la capa: ${layerId}`);
+      }
+    });
+
+    // Limpiar el mapa de colores guardados
+    originalRoadColorsRef.current.clear();
+  };
+
+  // Función para cambiar las calles a azul claro durante el dragging
+  const highlightRoadsForDropping = () => {
+    if (!mapInstance || !mapInstance.isStyleLoaded()) return;
+
+    // Limpiar colores guardados previos
+    originalRoadColorsRef.current.clear();
+
+    // Obtener todas las capas del mapa
+    const allLayers = mapInstance.getStyle().layers;
+
+    // Filtrar capas que probablemente sean carreteras
+    const roadLayers = allLayers?.filter((layer) => {
+      const layerId = layer.id.toLowerCase();
+      return (
+        layer.type === "line" &&
+        (layerId.includes("road") ||
+          layerId.includes("highway") ||
+          layerId.includes("street") ||
+          layerId.includes("motorway") ||
+          layerId.includes("trunk") ||
+          layerId.includes("primary") ||
+          layerId.includes("secondary") ||
+          layerId.includes("tertiary"))
+      );
+    });
+
+    // Cambiar color de todas las capas de carreteras detectadas
+    roadLayers?.forEach((layer) => {
+      try {
+        // Guardar el color original antes de cambiarlo
+        const currentColor = mapInstance.getPaintProperty(
+          layer.id,
+          "line-color"
+        );
+        if (currentColor !== undefined) {
+          originalRoadColorsRef.current.set(layer.id, currentColor as string);
+        }
+
+        // Cambiar al color azul
+        mapInstance.setPaintProperty(layer.id, "line-color", "#247cff");
+      } catch (error) {
+        // Ignorar errores si la capa no soporta line-color
+        console.debug(`No se pudo cambiar color de la capa: ${layer.id}`);
+      }
+    });
+  };
+
   useEffect(() => {
     const pegman = pegmanRef.current;
+    const pegmanShadow = pegmanShadowRef.current;
     const container = containerRef.current;
     if (!pegman || !container) return;
 
@@ -84,6 +155,9 @@ const PegmanContainer = ({
 
       // Change to dragging state
       setPegmanState("dragging");
+
+      // Cambiar las calles a azul claro para indicar donde se puede soltar el pegman
+      highlightRoadsForDropping();
 
       // Prevent text selection during drag
       document.body.style.userSelect = "none";
@@ -127,6 +201,17 @@ const PegmanContainer = ({
         }
       );
 
+      // Mover la sombra junto con el pegman
+      if (pegmanShadow) {
+        pegmanShadow.animate(
+          { translate: `${dx}px ${dy}px` },
+          {
+            duration: 100,
+            fill: "forwards",
+          }
+        );
+      }
+
       // Clear previous timeout
       if (inactivityTimeoutRef.current) {
         clearTimeout(inactivityTimeoutRef.current);
@@ -146,6 +231,9 @@ const PegmanContainer = ({
 
       isDraggingRef.current = false;
       setIsDraggingOutside(false);
+
+      // Restaurar colores originales de las calles
+      restoreOriginalRoadColors();
 
       // Restore normal styles
       document.body.style.userSelect = "";
@@ -180,6 +268,18 @@ const PegmanContainer = ({
           easing: "ease",
         }
       );
+
+      // Regresar la sombra a su posición original junto con el pegman
+      if (pegmanShadow) {
+        pegmanShadow.animate(
+          { translate: `0px 0px` },
+          {
+            duration: 500,
+            fill: "forwards",
+            easing: "ease",
+          }
+        );
+      }
 
       if (inactivityTimeoutRef.current) {
         clearTimeout(inactivityTimeoutRef.current);
@@ -273,6 +373,11 @@ const PegmanContainer = ({
         data-dragging={pegmanState === "dragging"}
         style={getPegmanImageStyle()}
       />
+      {pegmanState === "dragging" && (
+        <div className={styles.pegmanShadow} ref={pegmanShadowRef}>
+          <div className={styles.blurBackground} />
+        </div>
+      )}
     </div>
   );
 };
