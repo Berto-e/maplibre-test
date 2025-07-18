@@ -36,7 +36,7 @@ export const jitterPoints = (
 // Calculate points with equal coordinates 0(n) -> Time
 export const duplicatedPoints = (points: Point[]): Point[] => {
   let duplicatePointsMap: { [key: string]: Point[] } = {};
-  points.forEach((point, index) => {
+  points.forEach((point, _) => {
     const key = point.gps.join(",");
     if (!duplicatePointsMap[key]) {
       duplicatePointsMap[key] = [];
@@ -45,7 +45,7 @@ export const duplicatedPoints = (points: Point[]): Point[] => {
   });
   return Object.values(duplicatePointsMap)
     .flat()
-    .filter((point, _, arr) => {
+    .filter((point, _) => {
       const key = point.gps.join(",");
       return duplicatePointsMap[key].length > 1;
     });
