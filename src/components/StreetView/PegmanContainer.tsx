@@ -129,7 +129,7 @@ const PegmanContainer = ({
         }
 
         // Cambiar al color azul
-        mapInstance.setPaintProperty(layer.id, "line-color", "#247cff");
+        mapInstance.setPaintProperty(layer.id, "line-color", "#00aabd");
       } catch (error) {
         // Ignorar errores si la capa no soporta line-color
         console.debug(`No se pudo cambiar color de la capa: ${layer.id}`);

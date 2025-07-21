@@ -37,7 +37,6 @@ import type { Point } from "../../utils/generateRandomPoints";
 import PegmanContainer from "../StreetView/PegmanContainer";
 import "@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css";
 import { MaplibreTerradrawControl } from "@watergis/maplibre-gl-terradraw";
-import { duplicatedPoints, jitterPoints } from "../../utils/spiderfy";
 
 // Utility function for debouncing
 const useDebounce = (value: string, delay: number) => {
@@ -100,8 +99,8 @@ const MapBox = ({
   const [pegmanCoordinates, setPegmanCoordinates] = useState<
     [number, number] | null
   >(null);
-  const [currentZoom, setCurrentZoom] = useState<number>(initialZoom || 12);
-  const [jitteredPoints, setJitteredPoints] = useState<Point[]>([]);
+  // const [currentZoom, setCurrentZoom] = useState<number>(initialZoom || 12);
+  //const [jitteredPoints, setJitteredPoints] = useState<Point[]>([]);
 
   // Debounced search term to prevent excessive filtering
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -873,23 +872,9 @@ const MapBox = ({
       }
     });
 
-    // Apply jittered points if zoom >= 12 and we have jittered points
-    let finalPoints = filteredPoints;
-    if (jitteredPoints.length > 0) {
-      // Create a map of jittered points for quick lookup
-      const jitteredMap = new Map(
-        jitteredPoints.map((p) => [p.serialNumber, p])
-      );
-
-      // Replace duplicated points with jittered versions
-      finalPoints = filteredPoints.map(
-        (point) => jitteredMap.get(point.serialNumber) || point
-      );
-    }
-
     return {
       type: "FeatureCollection" as const,
-      features: finalPoints.map((p: Point) => {
+      features: filteredPoints.map((p: Point) => {
         // Create a stable random number based on serialNumber to prevent re-renders
         const stableRandom =
           ((parseInt(p.serialNumber.toString()) || 0) % 90) + 1;
@@ -909,7 +894,7 @@ const MapBox = ({
         };
       }),
     };
-  }, [points, filters, jitteredPoints]);
+  }, [points, filters]);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Interactive Map Creation
@@ -1110,93 +1095,6 @@ const MapBox = ({
       setPegmanCoordinates(null);
     }
   }, [pegmanCoordinates]);
-
-  // Memoize duplicated points calculation
-  const duplicatedPointsFromFilters = useMemo(() => {
-    const filteredPoints = points.filter((p: Point) => {
-      switch (p.status) {
-        case "green":
-          return filters.green;
-        case "red":
-          return filters.red;
-        case "yellow":
-          return filters.yellow;
-        default:
-          return true;
-      }
-    });
-
-    return duplicatedPoints(filteredPoints);
-  }, [points, filters]);
-
-  // Effect to handle jittering based on zoom
-  useEffect(() => {
-    if (currentZoom >= 11) {
-      // Apply jittering only once when zoom >= 12 and we don't have jittered points yet
-      if (
-        duplicatedPointsFromFilters.length > 0 &&
-        jitteredPoints.length === 0
-      ) {
-        const newJitteredPoints = jitterPoints(
-          duplicatedPointsFromFilters,
-          0.00015
-        );
-        setJitteredPoints(newJitteredPoints);
-      }
-    } else {
-      // Reset to original positions when zoom < 12 (only if we have jittered points)
-      if (jitteredPoints.length > 0) {
-        setJitteredPoints([]);
-      }
-    }
-  }, [currentZoom, duplicatedPointsFromFilters, jitteredPoints.length]);
-
-  // Effect to recalculate jittered points when filters change
-  useEffect(() => {
-    if (currentZoom >= 11 && duplicatedPointsFromFilters.length > 0) {
-      const newJitteredPoints = jitterPoints(
-        duplicatedPointsFromFilters,
-        0.00015
-      );
-      setJitteredPoints(newJitteredPoints);
-    } else if (duplicatedPointsFromFilters.length === 0) {
-      setJitteredPoints([]);
-    }
-  }, [duplicatedPointsFromFilters]);
-
-  // Effect to listen to zoom changes with debouncing
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    let zoomTimeout: number;
-
-    const handleZoom = () => {
-      // Debounce zoom changes to prevent excessive updates
-      clearTimeout(zoomTimeout);
-      zoomTimeout = setTimeout(() => {
-        const newZoom = map.getZoom();
-
-        // Only update if zoom threshold changed (< 12 or >= 12)
-        const currentIsAboveThreshold = currentZoom >= 11;
-        const newIsAboveThreshold = newZoom >= 11;
-
-        if (currentIsAboveThreshold !== newIsAboveThreshold) {
-          setCurrentZoom(newZoom);
-        }
-      }, 150); // Debounce by 150ms
-    };
-
-    map.on("zoom", handleZoom);
-
-    // Set initial zoom
-    setCurrentZoom(map.getZoom());
-
-    return () => {
-      clearTimeout(zoomTimeout);
-      map.off("zoom", handleZoom);
-    };
-  }, [currentZoom]);
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Component Render
