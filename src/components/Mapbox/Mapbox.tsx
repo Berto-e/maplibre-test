@@ -29,6 +29,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
+import StyleFlipperControl from "maplibre-gl-style-flipper";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { mapPoint } from "./MapPoint.types";
 import { useMapContext } from "../../contexts/MapContext";
@@ -37,6 +38,7 @@ import type { Point } from "../../utils/generateRandomPoints";
 import PegmanContainer from "../StreetView/PegmanContainer";
 import "@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css";
 import { MaplibreTerradrawControl } from "@watergis/maplibre-gl-terradraw";
+import pointsWithinPolygon from "@turf/points-within-polygon";
 
 // Utility function for debouncing
 const useDebounce = (value: string, delay: number) => {
@@ -95,12 +97,9 @@ const MapBox = ({
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [mapStyle, setMapStyle] = useState<number>(0);
   const [pegmanCoordinates, setPegmanCoordinates] = useState<
     [number, number] | null
   >(null);
-  // const [currentZoom, setCurrentZoom] = useState<number>(initialZoom || 12);
-  //const [jitteredPoints, setJitteredPoints] = useState<Point[]>([]);
 
   // Debounced search term to prevent excessive filtering
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -122,6 +121,27 @@ const MapBox = ({
     setIsSearching(debouncedSearchTerm.trim() !== "");
     setHighlightedIndex(-1);
   }, [filteredResults, debouncedSearchTerm]);
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Variables
+  ////////////////////////////////////////////////////////////////////////////////
+
+  // Define map styles
+  const mapStyles = {
+    openSteet: {
+      code: "openStreet",
+      url: "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+      image:
+        "https://carto.com/help/images/building-maps/basemaps/positron_labels.png",
+    },
+
+    streets: {
+      code: "streets",
+      url: "https://api.maptiler.com/maps/streets-v2/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+      image:
+        "https://carto.com/help/images/building-maps/basemaps/voyager_labels.png",
+    },
+  };
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Search bar Utilities
@@ -297,8 +317,7 @@ const MapBox = ({
     // ─── 3️⃣ Initialize static map instance ──────────────────────────────────
     const map = new maplibregl.Map({
       container: mapContainer.current!,
-      style:
-        "https://api.maptiler.com/maps/streets/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+      style: mapStyles["openSteet"].url,
       center: mapCenter,
       zoom: initialZoom || 15,
       interactive: false, // Disable user interactions
@@ -914,8 +933,7 @@ const MapBox = ({
     // ─── 1️⃣ Initialize interactive map instance ─────────────────────────────
     const map = new maplibregl.Map({
       container: mapContainer.current!,
-      style:
-        "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+      style: mapStyles["openSteet"].url,
       center: [-1.1307, 37.987], // Center of Murcia, Spain
       zoom: initialZoom || 12, // Default zoom level
       pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
@@ -926,12 +944,10 @@ const MapBox = ({
 
     mapRef.current = map;
 
-    // No need to expose globally anymore - we'll pass as prop
-    // (window as any).maplibreMap = map;
-    /* Map Controls */
-
+    /*  ------ Map Controls ----- */
     const draw = new MaplibreTerradrawControl({
       modes: [
+        "render",
         "linestring",
         "polygon",
         "rectangle",
@@ -944,7 +960,13 @@ const MapBox = ({
       open: true,
     });
 
+    // --💥 Map Control to draw polygons --
     map.addControl(draw, "top-right");
+
+    // -- 💥 Style Control --
+    const styleFlipperControl = new StyleFlipperControl(mapStyles);
+    styleFlipperControl.setCurrentStyleCode("openStreet");
+    map.addControl(styleFlipperControl, "bottom-left");
 
     // ─── 2️⃣ Setup map data and layers after load ───────────────────────────
     map.on("load", () => {
@@ -979,6 +1001,57 @@ const MapBox = ({
         clusterRadius: 50, // Radius of each cluster when clustering points (defaults to 50)
       });
 
+      // ─── ✨ Event listeners  ─────────────────
+      const drawInstance = draw.getTerraDrawInstance();
+      if (drawInstance) {
+        drawInstance.on("finish", (id) => {
+          console.log("🎯 Polígono completado con ID:", id);
+
+          const snapshot = drawInstance.getSnapshot();
+          const drawnFeature = snapshot?.find((feature) => feature.id === id);
+
+          if (drawnFeature && drawnFeature.geometry) {
+            console.log("📍 Figura dibujada:", drawnFeature);
+            console.log("📊 Tipo de geometría:", drawnFeature.geometry.type);
+            console.log("🗺️ Coordenadas:", drawnFeature.geometry.coordinates);
+
+            const polygon = {
+              type: "Feature" as const,
+              geometry: {
+                type: "Polygon" as const,
+                coordinates: drawnFeature.geometry.coordinates as number[][][],
+              },
+              properties: {},
+            };
+
+            try {
+              // Usar pointsWithinPolygon con los tipos correctos
+              const pointsInside = pointsWithinPolygon(geoJsonData, polygon);
+
+              console.log("✅ Análisis completado:");
+
+              console.log(
+                "📍 Puntos dentro del polígono:",
+                pointsInside.features.length
+              );
+              console.log(
+                "🎯 Detalles de puntos encontrados:",
+                pointsInside.features.map((f) => ({
+                  station: f.properties.station,
+                  status: f.properties.status,
+                  serialNumber: f.properties.serialNumber,
+                  coordinates: f.geometry.coordinates,
+                }))
+              );
+            } catch (error) {
+              console.error("❌ Error al filtrar puntos:", error);
+
+              console.log("🔍 Debug - polygon:", polygon);
+            }
+          }
+        });
+      }
+
       // ─── 3️⃣ Add cluster layers for performance ─────────────────────────
       addClusterLayers(map);
       addPointLayers(map);
@@ -986,50 +1059,6 @@ const MapBox = ({
       addMapEvents(map);
     });
   }, [points, addClusterLayers, addMapEvents]); // Only depend on points, not geoJsonData
-
-  // Handle style change with transformStyle to preserve custom sources and layers
-  const handleStyleChange = useCallback(
-    (styleUrl: string, styleIndex: number) => {
-      if (mapStyle === styleIndex) return;
-
-      const map = mapRef.current;
-      if (!map) return;
-
-      // Change the style using transformStyle to preserve our custom data
-      map.setStyle(styleUrl, {
-        transformStyle: (previousStyle, nextStyle) => ({
-          ...nextStyle,
-          sources: {
-            ...nextStyle.sources,
-            // Preserve our custom points source if it exists
-            ...(previousStyle?.sources?.points && {
-              points: previousStyle.sources.points,
-            }),
-          },
-          layers: [
-            // Keep all layers from the new style
-            ...nextStyle.layers,
-            // Add back our custom layers if they existed in the previous style
-            ...(previousStyle?.layers || []).filter((layer) =>
-              [
-                "clusters",
-                "cluster-count",
-                "points_green",
-                "points_red",
-                "points_yellow",
-                "numbers_green",
-                "numbers_red",
-                "numbers_yellow",
-              ].includes(layer.id)
-            ),
-          ],
-        }),
-      });
-
-      setMapStyle(styleIndex);
-    },
-    [mapStyle]
-  );
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: React Effects & Lifecycle
@@ -1257,95 +1286,6 @@ const MapBox = ({
                 No stations found for "{searchTerm}"
               </div>
             )}
-          </div>
-          <div
-            style={{
-              position: "absolute",
-              bottom: 10,
-              left: 10,
-              width: "70px",
-              height: "40px",
-              background: "white",
-              zIndex: 3,
-              borderRadius: "4px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
-              display: "flex",
-              padding: "5px", // aire dentro del contenedor
-              gap: "5px", // espacio entre hijos
-              boxSizing: "border-box", // para que el padding no rompa el tamaño
-            }}
-          >
-            {/* 🌐 Icono (global) */}
-            <div
-              style={{
-                cursor: "pointer",
-                background: mapStyle === 0 ? "#1b8ee057" : "#f1efef63",
-                flex: 1,
-                borderRadius: "3px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                transition: "background 0.2s",
-              }}
-              onClick={() =>
-                handleStyleChange(
-                  "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
-                  0
-                )
-              }
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#444"
-                strokeWidth="1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ display: "block" }}
-              >
-                <circle cx="12" cy="12" r="10" />
-                <ellipse cx="12" cy="12" rx="4" ry="10" />
-                <line x1="2" y1="12" x2="22" y2="12" />
-                <line x1="12" y1="2" x2="12" y2="22" />
-              </svg>
-            </div>
-            {/* 🌍 Icono bola del mundo */}
-            <div
-              style={{
-                cursor: "pointer",
-                background: mapStyle === 1 ? "#1b8ee057" : "#f1efef63",
-                flex: 1,
-                borderRadius: "3px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              onClick={() =>
-                handleStyleChange(
-                  "https://api.maptiler.com/maps/streets-v2/style.json?key=W8q1pSL8KdnaMEh4wtdB",
-                  1
-                )
-              }
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#444"
-                strokeWidth="1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ display: "block" }}
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M2 12a10 10 0 0 0 20 0" />
-                <path d="M12 2a10 10 0 0 0 0 20" />
-                <ellipse cx="12" cy="12" rx="6" ry="10" />
-              </svg>
-            </div>
           </div>
           <PegmanContainer
             mapInstance={mapRef.current}
