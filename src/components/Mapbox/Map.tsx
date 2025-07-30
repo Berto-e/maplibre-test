@@ -5,7 +5,7 @@
 // Description : A complete MapLibre component with points and lines
 //               All functionality included in a single component
 //
-// Features    : • MapLibre map with Dresden points
+// Features    : • MapLibre map with Leipzig points
 //               • Automatic center calculation
 //               • Line connecting all points
 //               • Markers with popups
@@ -31,7 +31,7 @@ const Map: React.FC = () => {
   // 📌 SECTION: Data & Configuration
   ////////////////////////////////////////////////////////////////////////////////
 
-  // Puntos proporcionados (Dresden, Germany)
+  // Provided points (Leipzig, Germany)
   const rawPoints: [number, number][] = [
     [12.239069, 51.407269],
     [12.2343294, 51.4091155],
@@ -44,12 +44,12 @@ const Map: React.FC = () => {
     [12.2343294, 51.4091155],
   ];
 
-  // Eliminar duplicados manteniendo el orden
+  // Remove duplicates while keeping order
   const filteredRawPoints = Array.from(
     new Set(rawPoints.map((p) => p.join(",")))
   ).map((str) => str.split(",").map(Number) as [number, number]);
 
-  // Calcular centro basado en los puntos filtrados
+  // Calculate center based on filtered points
   const centerLng =
     filteredRawPoints.reduce((sum, point) => sum + point[0], 0) /
     filteredRawPoints.length;
@@ -107,7 +107,7 @@ const Map: React.FC = () => {
       addMarkersAndLines();
     });
 
-    console.log("✅ Map initialized with Dresden points");
+    console.log("✅ Map initialized with Leipzig points");
 
     // Cleanup function
     return () => {
@@ -268,21 +268,21 @@ const Map: React.FC = () => {
         }}
       >
         <div style={{ fontWeight: "600", marginBottom: "4px" }}>
-          📍 Dresden Points Map
+          📍 Leipzig Points Map
         </div>
         <div style={{ fontSize: "12px", color: "#6b7280" }}>
           <div>
-            Centro: [{centerLng.toFixed(6)}, {centerLat.toFixed(6)}]
+            Center: [{centerLng.toFixed(6)}, {centerLat.toFixed(6)}]
           </div>
           <div>Zoom: {zoom}</div>
           <div>
-            Puntos: {filteredRawPoints.length} únicos de {rawPoints.length}{" "}
-            originales
+            Points: {filteredRawPoints.length} unique of {rawPoints.length}{" "}
+            original
           </div>
           <div
             style={{ marginTop: "4px", fontSize: "11px", fontStyle: "italic" }}
           >
-            🔢 Los números muestran la secuencia del recorrido
+            🔢 The numbers show the sequence of the route
           </div>
         </div>
       </div>

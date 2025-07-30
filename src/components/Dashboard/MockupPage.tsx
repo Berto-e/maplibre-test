@@ -48,7 +48,7 @@ const MockupPage: React.FC = () => {
             color: "#1e293b",
           }}
         >
-          Mapa Dresden
+          Leipzig Map
         </h1>
         <p
           style={{
@@ -56,9 +56,7 @@ const MockupPage: React.FC = () => {
             color: "#64748b",
             fontSize: "1rem",
           }}
-        >
-          Puntos conectados por una línea
-        </p>
+        ></p>
       </div>
 
       {/* Map Container */}
