@@ -29,7 +29,7 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import maplibregl from "maplibre-gl";
-import StyleFlipperControl from "maplibre-gl-style-flipper";
+
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { mapPoint } from "./MapPoint.types";
 import { useMapContext } from "../../contexts/MapContext";
@@ -90,12 +90,14 @@ const MapBox = ({
   // Refs for map container and map instance
   const mapContainer = useRef(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const drawRef = useRef<MaplibreTerradrawControl | null>(null);
   const points = mapPoints || [];
 
   // Search functionality with optimization
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [mapStyle, setMapStyle] = useState<number>(0);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [pegmanCoordinates, setPegmanCoordinates] = useState<
     [number, number] | null
@@ -960,13 +962,10 @@ const MapBox = ({
       open: true,
     });
 
+    drawRef.current = draw;
+
     // --💥 Map Control to draw polygons --
     map.addControl(draw, "top-right");
-
-    // -- 💥 Style Control --
-    const styleFlipperControl = new StyleFlipperControl(mapStyles);
-    styleFlipperControl.setCurrentStyleCode("openStreet");
-    map.addControl(styleFlipperControl, "bottom-left");
 
     // ─── 2️⃣ Setup map data and layers after load ───────────────────────────
     map.on("load", () => {
@@ -1059,6 +1058,52 @@ const MapBox = ({
       addMapEvents(map);
     });
   }, [points, addClusterLayers, addMapEvents]); // Only depend on points, not geoJsonData
+
+  // Handle style change with transformStyle to preserve custom sources and layers
+  const handleStyleChange = useCallback(
+    (styleUrl: string, styleIndex: number) => {
+      if (mapStyle === styleIndex) return;
+
+      const map = mapRef.current;
+      if (!map) return;
+      const draw = drawRef.current;
+
+      // Change the style using transformStyle to preserve our custom data
+      map.setStyle(styleUrl, {
+        transformStyle: (previousStyle, nextStyle) => ({
+          ...nextStyle,
+          sources: {
+            ...nextStyle.sources,
+            // Preserve our custom points source if it exists
+            ...(previousStyle?.sources?.points && {
+              points: previousStyle.sources.points,
+            }),
+          },
+          layers: [
+            // Keep all layers from the new style
+            ...nextStyle.layers,
+            // Add back our custom layers if they existed in the previous style
+            ...(previousStyle?.layers || []).filter((layer) =>
+              [
+                "clusters",
+                "cluster-count",
+                "points_green",
+                "points_red",
+                "points_yellow",
+                "numbers_green",
+                "numbers_red",
+                "numbers_yellow",
+              ].includes(layer.id)
+            ),
+          ],
+        }),
+      });
+      draw?.deactivate();
+
+      setMapStyle(styleIndex);
+    },
+    [mapStyle]
+  );
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: React Effects & Lifecycle
@@ -1286,6 +1331,95 @@ const MapBox = ({
                 No stations found for "{searchTerm}"
               </div>
             )}
+          </div>
+          <div
+            style={{
+              position: "absolute",
+              bottom: 10,
+              left: 10,
+              width: "70px",
+              height: "40px",
+              background: "white",
+              zIndex: 3,
+              borderRadius: "4px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.13)",
+              display: "flex",
+              padding: "5px", // aire dentro del contenedor
+              gap: "5px", // espacio entre hijos
+              boxSizing: "border-box", // para que el padding no rompa el tamaño
+            }}
+          >
+            {/* 🌐 Icono (global) */}
+            <div
+              style={{
+                cursor: "pointer",
+                background: mapStyle === 0 ? "#1b8ee057" : "#f1efef63",
+                flex: 1,
+                borderRadius: "3px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "background 0.2s",
+              }}
+              onClick={() =>
+                handleStyleChange(
+                  "https://api.maptiler.com/maps/openstreetmap/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+                  0
+                )
+              }
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#444"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ display: "block" }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <ellipse cx="12" cy="12" rx="4" ry="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <line x1="12" y1="2" x2="12" y2="22" />
+              </svg>
+            </div>
+            {/* 🌍 Icono bola del mundo */}
+            <div
+              style={{
+                cursor: "pointer",
+                background: mapStyle === 1 ? "#1b8ee057" : "#f1efef63",
+                flex: 1,
+                borderRadius: "3px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onClick={() =>
+                handleStyleChange(
+                  "https://api.maptiler.com/maps/streets-v2/style.json?key=W8q1pSL8KdnaMEh4wtdB",
+                  1
+                )
+              }
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#444"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ display: "block" }}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M2 12a10 10 0 0 0 20 0" />
+                <path d="M12 2a10 10 0 0 0 0 20" />
+                <ellipse cx="12" cy="12" rx="6" ry="10" />
+              </svg>
+            </div>
           </div>
           <PegmanContainer
             mapInstance={mapRef.current}
