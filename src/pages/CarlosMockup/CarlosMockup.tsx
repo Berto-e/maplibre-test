@@ -196,7 +196,7 @@ const CarlosMockup = () => {
         const properties = feature.properties;
 
         // Create popup with coordinates
-        const popup = new maplibregl.Popup()
+        new maplibregl.Popup()
           .setLngLat(coordinates)
           .setHTML(
             `
