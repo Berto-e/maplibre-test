@@ -1,9 +1,8 @@
-import MockupPage from "./components/Dashboard/MockupPage";
+import CarlosMockup from "./pages/CarlosMockup/CarlosMockup";
 const App = () => {
   return (
     <>
-      {/* <Dashboard /> */}
-      <MockupPage />
+      <CarlosMockup />
     </>
   );
 };

@@ -1,0 +1,6 @@
+# pnpm security configuration
+audit-level=moderate
+fund=false
+auto-install-peers=false
+# Suppress non-critical peer dependency warnings
+strict-peer-dependencies=false

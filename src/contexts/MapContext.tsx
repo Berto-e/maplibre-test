@@ -32,6 +32,7 @@ export const MapProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useMapContext = () => {
   const context = useContext(MapContext);
 

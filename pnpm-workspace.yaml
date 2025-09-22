@@ -1,0 +1,7 @@
+packages:
+  - "."
+
+# Security: Wait 24 hours before allowing newly published packages
+# This protects against supply chain attacks
+settings:
+  minimumReleaseAge: 1440

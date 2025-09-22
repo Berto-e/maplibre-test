@@ -4,7 +4,7 @@ import { useCallback, useState, useMemo } from "react";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { generateRandomPoints } from "../../utils/generateRandomPoints";
-import Mapbox from "../Mapbox/Mapbox";
+import Mapbox from "../../components/Mapbox/Mapbox";
 
 const Dashboard = () => {
   const { mapElements, filters, setFilters } = useMapContext();
