@@ -175,11 +175,59 @@ const CarlosMockup = () => {
         });
     });
 
+    // Individual point click events for popup
+    map.on("click", "carlos-individual-points", (e) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ["carlos-individual-points"],
+      });
+
+      if (features.length > 0) {
+        const feature = features[0];
+        const coordinates = (
+          feature.geometry as GeoJSON.Point
+        ).coordinates.slice() as [number, number];
+        const properties = feature.properties;
+
+        // Create popup with coordinates
+        new maplibregl.Popup()
+          .setLngLat(coordinates)
+          .setHTML(
+            `
+            <div style="font-family: sans-serif; max-width: 200px;">
+              <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
+                📍 Punto ${properties?.pointNumber || properties?.id || "N/A"}
+              </h3>
+              <div style="font-size: 12px; color: #6b7280; line-height: 1.4;">
+                <div><strong>Longitud:</strong> ${coordinates[0].toFixed(
+                  6
+                )}</div>
+                <div><strong>Latitud:</strong> ${coordinates[1].toFixed(
+                  6
+                )}</div>
+                <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
+                  Click en cluster para expandir
+                </div>
+              </div>
+            </div>
+          `
+          )
+          .addTo(map);
+      }
+    });
+
     // Change cursor on cluster hover
     map.on("mouseenter", "clusters", () => {
       map.getCanvas().style.cursor = "pointer";
     });
     map.on("mouseleave", "clusters", () => {
+      map.getCanvas().style.cursor = "";
+    });
+
+    // Change cursor on individual point hover
+    map.on("mouseenter", "carlos-individual-points", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "carlos-individual-points", () => {
       map.getCanvas().style.cursor = "";
     });
   }, []);

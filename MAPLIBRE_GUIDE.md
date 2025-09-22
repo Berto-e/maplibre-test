@@ -34,15 +34,126 @@ import "maplibre-gl/dist/maplibre-gl.css"; // ¡Importante! Los estilos CSS
 
 ## 📖 Conceptos Fundamentales
 
-### 1. **Referencias (useRef)**
+### 1. **Referencias (useRef) - ¿Por qué las necesitamos?**
+
+En React, los componentes se vuelven a renderizar constantemente. Si guardáramos el mapa en una variable normal o en el estado, se perdería o recrearía en cada render, lo cual sería muy ineficiente.
 
 ```typescript
 const mapContainer = useRef<HTMLDivElement>(null);
 const mapRef = useRef<maplibregl.Map | null>(null);
 ```
 
-- `mapContainer`: Referencia al elemento DOM donde se monta el mapa
-- `mapRef`: Referencia a la instancia del mapa MapLibre
+#### 🎯 **mapContainer - Referencia al DOM**
+
+```typescript
+// En el JSX:
+<div ref={mapContainer} style={{ width: "100%", height: "100%" }} />;
+
+// En JavaScript:
+const map = new maplibregl.Map({
+  container: mapContainer.current, // ← Le dice a MapLibre DÓNDE montarse
+  style: mapStyle,
+  center: center,
+  zoom: zoom,
+});
+```
+
+**¿Qué hace?**
+
+- Guarda una referencia directa al elemento `<div>` del DOM
+- MapLibre necesita un elemento DOM real donde "vivir"
+- React no puede acceder directamente al DOM, useRef es el puente
+
+**Analogía:** Es como darle a MapLibre la dirección exacta de tu casa para que sepa dónde instalarse.
+
+#### 🗺️ **mapRef - Referencia a la Instancia del Mapa**
+
+```typescript
+// Crear el mapa
+const map = new maplibregl.Map({
+  /* configuración */
+});
+mapRef.current = map; // ← Guardamos la instancia del mapa
+
+// Más tarde podemos usarlo:
+if (mapRef.current) {
+  mapRef.current.addLayer({
+    /* nueva capa */
+  });
+  mapRef.current.flyTo({ center: [lng, lat] });
+  mapRef.current.remove(); // Al limpiar el componente
+}
+```
+
+**¿Qué hace?**
+
+- Guarda la instancia del mapa MapLibre para usar después
+- Permite manipular el mapa desde otros useEffect o funciones
+- Persiste entre renders sin recrear el mapa
+- Nos permite hacer cleanup al desmontar el componente
+
+**Analogía:** Es como tener el control remoto de tu TV. Una vez que tienes el control, puedes cambiar canales, volumen, etc.
+
+#### ⚠️ **¿Qué pasaría SIN useRef?**
+
+```typescript
+// ❌ MAL - Sin useRef
+let map; // Variable normal
+
+useEffect(() => {
+  map = new maplibregl.Map({
+    container: "map-div", // ← ¿Qué div? No sabemos cuál
+    // ...
+  });
+}, []);
+
+// ❌ PROBLEMA:
+// - En cada render, 'map' se vuelve undefined
+// - No podemos acceder al mapa desde otras funciones
+// - No podemos hacer cleanup adecuado
+// - El elemento DOM no está garantizado
+```
+
+#### ✅ **Comparación Práctica:**
+
+```typescript
+// CON useRef (CORRECTO)
+const MyMapComponent = () => {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+
+  useEffect(() => {
+    // ✅ Sabemos exactamente qué elemento usar
+    if (!mapContainer.current) return;
+
+    const map = new maplibregl.Map({
+      container: mapContainer.current, // ← Elemento DOM específico
+      // ...
+    });
+
+    mapRef.current = map; // ← Guardamos para usar después
+
+    return () => {
+      // ✅ Podemos limpiar correctamente
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
+
+  const addNewLayer = () => {
+    // ✅ Podemos acceder al mapa desde cualquier función
+    if (mapRef.current) {
+      mapRef.current.addLayer({
+        /* ... */
+      });
+    }
+  };
+
+  return <div ref={mapContainer} style={{ width: "100%", height: "400px" }} />;
+};
+```
 
 ### 2. **GeoJSON - Formato de Datos**
 
