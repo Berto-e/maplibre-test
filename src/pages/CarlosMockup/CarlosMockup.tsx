@@ -30,6 +30,13 @@ const CarlosMockup = () => {
   // 📌 SECTION: Data Processing & State
   ////////////////////////////////////////////////////////////////////////////////
 
+  // Open Street View function
+  const openStreetView = (lat: number, long: number) => {
+    const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${long}&heading=HEADING&pitch=PITCH&fov=FOV
+`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   // Process and filter raw points data
   const processedPoints = useMemo(() => {
     // Convert objects to arrays and filter out invalid points
@@ -91,7 +98,7 @@ const CarlosMockup = () => {
 
   const zoom = 6;
   const apiKey = "W8q1pSL8KdnaMEh4wtdB";
-  const mapStyle = `https://api.maptiler.com/maps/openstreetmap/style.json?key=${apiKey}`;
+  const mapStyle = `https://api.maptiler.com/maps/streets/style.json?key=${apiKey}`;
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Refs
@@ -189,29 +196,53 @@ const CarlosMockup = () => {
         const properties = feature.properties;
 
         // Create popup with coordinates
-        new maplibregl.Popup()
+        const popup = new maplibregl.Popup()
           .setLngLat(coordinates)
           .setHTML(
             `
             <div style="font-family: sans-serif; max-width: 200px;">
               <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
-                📍 Punto ${properties?.pointNumber || properties?.id || "N/A"}
+                📍 Point ${properties?.pointNumber || properties?.id || "N/A"}
               </h3>
               <div style="font-size: 12px; color: #6b7280; line-height: 1.4;">
-                <div><strong>Longitud:</strong> ${coordinates[0].toFixed(
+                <div><strong>Longitude:</strong> ${coordinates[0].toFixed(
                   6
                 )}</div>
-                <div><strong>Latitud:</strong> ${coordinates[1].toFixed(
+                <div><strong>Latitude:</strong> ${coordinates[1].toFixed(
                   6
                 )}</div>
-                <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af;">
-                  Click en cluster para expandir
+                <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                  <button
+                    id="streetview-btn"
+                    style="
+                      background: #3b82f6;
+                      color: white;
+                      border: none;
+                      padding: 6px 12px;
+                      border-radius: 4px;
+                      font-size: 11px;
+                      cursor: pointer;
+                      width: 100%;
+                    "
+                  >
+                    🗺️ View in Street View
+                  </button>
                 </div>
               </div>
             </div>
           `
           )
           .addTo(map);
+
+        // Add event listener to the button after popup is added to DOM
+        setTimeout(() => {
+          const btn = document.getElementById('streetview-btn');
+          if (btn) {
+            btn.addEventListener('click', () => {
+              openStreetView(coordinates[1], coordinates[0]);
+            });
+          }
+        }, 0);
       }
     });
 
@@ -400,7 +431,7 @@ const CarlosMockup = () => {
         type: "geojson",
         data: geoJsonData,
         cluster: true,
-        clusterMaxZoom: 14, // Max zoom to cluster points
+        clusterMaxZoom: 11, // Max zoom to cluster points
         clusterRadius: 50, // Radius of each cluster
       });
 
