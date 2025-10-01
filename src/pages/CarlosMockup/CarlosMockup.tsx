@@ -16,16 +16,39 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-import { useEffect, useRef, useMemo, useCallback } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+  useState,
+} from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import rawPoints from "../../utils/carlos.json";
+
+type tPoint = {
+  "Entity Name": string | null;
+  longitude: number | null;
+  latitude: number | null;
+  "GNSS accuracy": string | null;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 // 📌 SECTION: Component Definition
 ////////////////////////////////////////////////////////////////////////////////
 
 const CarlosMockup = () => {
+  ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: State Management
+  ////////////////////////////////////////////////////////////////////////////////
+
+  // Filter state for tag selection
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [gnssGreaterThanZeroFilter, setGnssGreaterThanZeroFilter] =
+    useState<boolean>(false);
+  const [gnssNotNullFilter, setGnssNotNullFilter] = useState<boolean>(false);
+
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Data Processing & State
   ////////////////////////////////////////////////////////////////////////////////
@@ -40,13 +63,16 @@ const CarlosMockup = () => {
   // Process and filter raw points data
   const processedPoints = useMemo(() => {
     // Convert objects to arrays and filter out invalid points
-    const validPoints = rawPoints
+    const validPoints = (rawPoints as tPoint[])
       .filter((p) => p.longitude !== 0 && p.latitude !== 0)
       .map((p, index) => ({
         id: index,
         coordinates: [p.longitude, p.latitude] as [number, number],
         longitude: p.longitude,
         latitude: p.latitude,
+
+        gnss: p["GNSS accuracy"],
+        tag: p["Entity Name"],
       }));
 
     // Remove duplicates based on coordinates
@@ -60,6 +86,16 @@ const CarlosMockup = () => {
     );
 
     return uniquePoints;
+  }, []);
+
+  // Get unique Entity Name tags from rawPoints (as tPoint)
+  const uniqueTags = useMemo(() => {
+    const seen = new Set<string>();
+    return (rawPoints as tPoint[])
+      .map((p) => p["Entity Name"])
+      .filter(
+        (tag): tag is string => !!tag && !seen.has(tag) && !!seen.add(tag)
+      );
   }, []);
 
   // Calculate center based on filtered points
@@ -87,6 +123,8 @@ const CarlosMockup = () => {
         properties: {
           id: point.id,
           pointNumber: point.id + 1, // For display numbering
+          tag: point.tag, // Entity Name for filtering
+          gnss: point.gnss, // GNSS accuracy
         },
       })),
     };
@@ -200,7 +238,7 @@ const CarlosMockup = () => {
           .setLngLat(coordinates)
           .setHTML(
             `
-            <div style="font-family: sans-serif; max-width: 200px;">
+            <div style="max-width: 200px;">
               <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
                 📍 Point ${properties?.pointNumber || properties?.id || "N/A"}
               </h3>
@@ -236,9 +274,9 @@ const CarlosMockup = () => {
 
         // Add event listener to the button after popup is added to DOM
         setTimeout(() => {
-          const btn = document.getElementById('streetview-btn');
+          const btn = document.getElementById("streetview-btn");
           if (btn) {
-            btn.addEventListener('click', () => {
+            btn.addEventListener("click", () => {
               openStreetView(coordinates[1], coordinates[0]);
             });
           }
@@ -393,6 +431,61 @@ const CarlosMockup = () => {
   }, []);
 
   ////////////////////////////////////////////////////////////////////////////////
+  // 📌 SECTION: Filter Functions
+  ////////////////////////////////////////////////////////////////////////////////
+
+  // Update map filters based on selected tag and GNSS filters
+  const updateMapFilters = useCallback(
+    (
+      map: maplibregl.Map,
+      tagFilter: string | null,
+      gnssGreaterThanZero: boolean,
+      gnssNotNull: boolean
+    ) => {
+      if (!map.isStyleLoaded()) return;
+
+      // For clustering with filters, we need to update the source data
+      // MapLibre clustering doesn't work well with layer-level filters
+      let filteredFeatures = geoJsonData.features;
+
+      // Apply tag filter
+      if (tagFilter) {
+        filteredFeatures = filteredFeatures.filter(
+          (feature) => feature.properties.tag === tagFilter
+        );
+      }
+
+      // Apply GNSS > 0 filter
+      if (gnssGreaterThanZero) {
+        filteredFeatures = filteredFeatures.filter((feature) => {
+          const gnss = feature.properties.gnss;
+          return gnss !== null && gnss !== undefined && Number(gnss) > 0;
+        });
+      }
+
+      // Apply GNSS not null filter
+      if (gnssNotNull) {
+        filteredFeatures = filteredFeatures.filter((feature) => {
+          const gnss = feature.properties.gnss;
+          return gnss !== null && gnss !== undefined && gnss !== "";
+        });
+      }
+
+      const filteredData = {
+        type: "FeatureCollection" as const,
+        features: filteredFeatures,
+      };
+
+      // Update the source data
+      const source = map.getSource("carlos-points") as maplibregl.GeoJSONSource;
+      if (source) {
+        source.setData(filteredData);
+      }
+    },
+    [geoJsonData]
+  );
+
+  ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Map Creation
   ////////////////////////////////////////////////////////////////////////////////
 
@@ -470,12 +563,36 @@ const CarlosMockup = () => {
     };
   }, [createMap]);
 
+  // Update filters when any filter changes
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    updateMapFilters(
+      map,
+      selectedTag,
+      gnssGreaterThanZeroFilter,
+      gnssNotNullFilter
+    );
+  }, [
+    selectedTag,
+    gnssGreaterThanZeroFilter,
+    gnssNotNullFilter,
+    updateMapFilters,
+  ]);
+
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Component Render
   ////////////////////////////////////////////////////////////////////////////////
 
   return (
-    <div style={{ width: "100%", height: "100%", position: "relative" }}>
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        position: "relative",
+      }}
+    >
       {/* Map Container */}
       <div
         ref={mapContainer}
@@ -504,7 +621,7 @@ const CarlosMockup = () => {
         }}
       >
         <div style={{ fontWeight: "600", marginBottom: "4px" }}>
-          📍 Carlos Route Data (Clustered)
+          📍 Carlos Data (Clustered)
         </div>
         <div style={{ fontSize: "12px", color: "#6b7280" }}>
           <div>
@@ -518,6 +635,127 @@ const CarlosMockup = () => {
           >
             🔢 Clustered for better performance
           </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          top: "140px",
+          left: "10px",
+          background: "rgba(255, 255, 255, 0.95)",
+          padding: "12px 16px",
+          borderRadius: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          fontSize: "14px",
+          color: "#374151",
+          maxWidth: "280px",
+          zIndex: 1,
+        }}
+      >
+        <div
+          style={{
+            fontWeight: "600",
+            marginBottom: "8px",
+          }}
+        >
+          🏷️ Filter by tag
+        </div>
+
+        {/* Tag Filter Dropdown */}
+        <select
+          value={selectedTag || ""}
+          onChange={(e) => setSelectedTag(e.target.value || null)}
+          style={{
+            width: "100%",
+            padding: "6px 8px",
+            borderRadius: "4px",
+            border: "1px solid #d1d5db",
+            fontSize: "12px",
+            backgroundColor: "white",
+            cursor: "pointer",
+            marginBottom: "8px",
+          }}
+        >
+          <option value="">Todos los puntos</option>
+          {uniqueTags.map((tag) => (
+            <option key={tag} value={tag}>
+              {tag}
+            </option>
+          ))}
+        </select>
+
+        {/* Filter Info */}
+        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+          {selectedTag ? (
+            <div>
+              📌 Mostrando solo: <strong>{selectedTag}</strong>
+              <br />
+              <span style={{ fontStyle: "italic" }}>
+                {processedPoints.filter((p) => p.tag === selectedTag).length}{" "}
+                puntos
+              </span>
+            </div>
+          ) : (
+            <div style={{ fontStyle: "italic" }}>
+              Mostrando todos los {uniqueTags.length} tags disponibles
+            </div>
+          )}
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: "260px",
+          left: "10px",
+          background: "rgba(255, 255, 255, 0.95)",
+          padding: "12px 16px",
+          borderRadius: "8px",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          fontSize: "14px",
+          color: "#374151",
+          maxWidth: "280px",
+          zIndex: 1,
+        }}
+      >
+        <div style={{ fontWeight: "600", marginBottom: "8px" }}>
+          🏷️ Filter by gnss
+        </div>
+        <div style={{ fontSize: "11px", color: "#6b7280" }}>
+          <label
+            style={{
+              display: "flex",
+              gap: "3px",
+              alignItems: "center",
+              fontSize: "13px",
+            }}
+          >
+            {"GNSS > 0"}
+            <input
+              type="checkbox"
+              checked={gnssGreaterThanZeroFilter}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setGnssGreaterThanZeroFilter(e.target.checked);
+              }}
+            />
+          </label>
+          <label
+            style={{
+              display: "flex",
+              gap: "3px",
+              alignItems: "center",
+              fontSize: "13px",
+            }}
+          >
+            {"GNSS not null"}
+            <input
+              type="checkbox"
+              checked={gnssNotNullFilter}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                setGnssNotNullFilter(e.target.checked);
+              }}
+            />
+          </label>
         </div>
       </div>
     </div>

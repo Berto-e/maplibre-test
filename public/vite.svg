@@ -1,3 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
-<svg width="800px" height="800px" viewBox="0 0 1024 1024" class="icon"  version="1.1" xmlns="http://www.w3.org/2000/svg"><path d="M512 512m-480 0a480 480 0 1 0 960 0 480 480 0 1 0-960 0Z" fill="#E5F1FF" /><path d="M512 179.2c-96 102.4-262.4 236.8-262.4 384s115.2 262.4 262.4 262.4 262.4-115.2 262.4-262.4-160-281.6-262.4-384z" fill="#9FC8FE" /><path d="M512 684.8c-57.6 0-102.4-44.8-102.4-108.8 0-57.6 64-102.4 102.4-147.2 38.4 44.8 102.4 89.6 102.4 147.2 0 57.6-44.8 108.8-102.4 108.8z" fill="#72AEFD" /></svg>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg width="800px" height="800px" viewBox="0 -10.43 47.856 47.856" xmlns="http://www.w3.org/2000/svg">
+  <g id="_4" data-name="4" transform="translate(-533.889 -162.466)">
+    <path id="Path_207" data-name="Path 207" d="M581.745,181.466s0-11.137-8.378-11.137c-5.709,0-30.838,3.292-30.838,3.292l-3.748-5.155h-4.892l5.5,13h11.558l-4.766,8h4.42l8.512-8Z" fill="#59bdff"/>
+    <path id="Path_208" data-name="Path 208" d="M563.587,169.2l-11.262-6.737H547.15l7.653,7.569Z" fill="#59bdff"/>
+  </g>
+</svg>
