@@ -94,22 +94,22 @@ const CarlosMockup = () => {
     );
 
     // Remove duplicates based on coordinates
-    const uniquePoints = validPoints.filter(
-      (point, index, self) =>
-        self.findIndex(
-          (p) =>
-            p.coordinates[0] === point.coordinates[0] &&
-            p.coordinates[1] === point.coordinates[1]
-        ) === index
-    );
+    // const uniquePoints = validPoints.filter(
+    //   (point, index, self) =>
+    //     self.findIndex(
+    //       (p) =>
+    //         p.coordinates[0] === point.coordinates[0] &&
+    //         p.coordinates[1] === point.coordinates[1]
+    //     ) === index
+    // );
 
-    console.log(
-      "📊 Unique points count (after duplicate removal):",
-      uniquePoints.length
-    );
+    // console.log(
+    //   "📊 Unique points count (after duplicate removal):",
+    //   uniquePoints.length
+    // );
 
     // Sample processed GNSS values
-    const sampleProcessedGnss = uniquePoints.slice(0, 10).map((p) => ({
+    const sampleProcessedGnss = validPoints.slice(0, 10).map((p) => ({
       gnss: p.gnss,
       type: typeof p.gnss,
       isNull: p.gnss === null,
@@ -120,7 +120,7 @@ const CarlosMockup = () => {
     console.log("📡 Sample processed GNSS values:", sampleProcessedGnss);
     console.log("🔍 === DATA PROCESSING DEBUG END ===");
 
-    return uniquePoints;
+    return validPoints;
   }, []);
 
   // Get unique Entity Name tags from rawPoints (as tPoint)
@@ -699,7 +699,7 @@ const CarlosMockup = () => {
             Center: [{center[0].toFixed(6)}, {center[1].toFixed(6)}]
           </div>
           <div>Zoom: {zoom}</div>
-          <div>Unique Points: {processedPoints.length}</div>
+          <div>Filtered Points: {processedPoints.length}</div>
           <div>Original Points: {rawPoints.length}</div>
           <div
             style={{ marginTop: "4px", fontSize: "11px", fontStyle: "italic" }}
