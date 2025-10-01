@@ -777,7 +777,7 @@ const CarlosMockup = () => {
       <div
         style={{
           position: "absolute",
-          top: "250px",
+          top: "260px",
           left: "10px",
           background: "rgba(255, 255, 255, 0.95)",
           padding: "12px 16px",
