@@ -62,6 +62,19 @@ const CarlosMockup = () => {
 
   // Process and filter raw points data
   const processedPoints = useMemo(() => {
+    console.log("🔍 === DATA PROCESSING DEBUG START ===");
+    console.log("📊 Raw points count:", rawPoints.length);
+
+    // Sample some raw GNSS values for debugging
+    const sampleRawGnss = rawPoints.slice(0, 10).map((p) => ({
+      gnss: p["GNSS accuracy"],
+      type: typeof p["GNSS accuracy"],
+      isNull: p["GNSS accuracy"] === null,
+      isEmpty: p["GNSS accuracy"] === "",
+      value: p["GNSS accuracy"],
+    }));
+    console.log("📡 Sample raw GNSS values:", sampleRawGnss);
+
     // Convert objects to arrays and filter out invalid points
     const validPoints = (rawPoints as tPoint[])
       .filter((p) => p.longitude !== 0 && p.latitude !== 0)
@@ -75,6 +88,11 @@ const CarlosMockup = () => {
         tag: p["Entity Name"],
       }));
 
+    console.log(
+      "📊 Valid points count (after coordinate filter):",
+      validPoints.length
+    );
+
     // Remove duplicates based on coordinates
     const uniquePoints = validPoints.filter(
       (point, index, self) =>
@@ -84,6 +102,23 @@ const CarlosMockup = () => {
             p.coordinates[1] === point.coordinates[1]
         ) === index
     );
+
+    console.log(
+      "📊 Unique points count (after duplicate removal):",
+      uniquePoints.length
+    );
+
+    // Sample processed GNSS values
+    const sampleProcessedGnss = uniquePoints.slice(0, 10).map((p) => ({
+      gnss: p.gnss,
+      type: typeof p.gnss,
+      isNull: p.gnss === null,
+      isEmpty: p.gnss === "",
+      numberValue: Number(p.gnss),
+      isGreaterThanZero: Number(p.gnss) > 0,
+    }));
+    console.log("📡 Sample processed GNSS values:", sampleProcessedGnss);
+    console.log("🔍 === DATA PROCESSING DEBUG END ===");
 
     return uniquePoints;
   }, []);
@@ -444,37 +479,73 @@ const CarlosMockup = () => {
     ) => {
       if (!map.isStyleLoaded()) return;
 
+      console.log("🔍 === FILTER DEBUG START ===");
+      console.log("📊 Original features count:", geoJsonData.features.length);
+      console.log("🏷️ Tag filter:", tagFilter);
+      console.log("📡 GNSS > 0 filter:", gnssGreaterThanZero);
+      console.log("📡 GNSS not null filter:", gnssNotNull);
+
       // For clustering with filters, we need to update the source data
       // MapLibre clustering doesn't work well with layer-level filters
       let filteredFeatures = geoJsonData.features;
 
       // Apply tag filter
       if (tagFilter) {
+        const beforeCount = filteredFeatures.length;
         filteredFeatures = filteredFeatures.filter(
           (feature) => feature.properties.tag === tagFilter
+        );
+        console.log(
+          `🏷️ After tag filter (${tagFilter}): ${beforeCount} → ${filteredFeatures.length}`
         );
       }
 
       // Apply GNSS > 0 filter
       if (gnssGreaterThanZero) {
+        const beforeCount = filteredFeatures.length;
         filteredFeatures = filteredFeatures.filter((feature) => {
           const gnss = feature.properties.gnss;
-          return gnss !== null && gnss !== undefined && Number(gnss) > 0;
+          const isValid =
+            gnss !== null && gnss !== undefined && Number(gnss) > 0;
+          return isValid;
         });
+        console.log(
+          `📡 After GNSS > 0 filter: ${beforeCount} → ${filteredFeatures.length}`
+        );
+
+        // Sample some GNSS values for debugging
+        const sampleGnss = filteredFeatures
+          .slice(0, 5)
+          .map((f) => f.properties.gnss);
+        console.log("📡 Sample GNSS values (> 0):", sampleGnss);
       }
 
       // Apply GNSS not null filter
       if (gnssNotNull) {
+        const beforeCount = filteredFeatures.length;
         filteredFeatures = filteredFeatures.filter((feature) => {
           const gnss = feature.properties.gnss;
-          return gnss !== null && gnss !== undefined && gnss !== "";
+          const isNotNull = gnss !== null && gnss !== undefined && gnss !== "";
+          return isNotNull;
         });
+        console.log(
+          `📡 After GNSS not null filter: ${beforeCount} → ${filteredFeatures.length}`
+        );
+
+        // Sample some GNSS values for debugging
+        const sampleGnss = filteredFeatures
+          .slice(0, 5)
+          .map((f) => f.properties.gnss);
+        console.log("📡 Sample GNSS values (not null):", sampleGnss);
       }
 
       const filteredData = {
         type: "FeatureCollection" as const,
         features: filteredFeatures,
       };
+
+      console.log("✅ Final filtered features count:", filteredFeatures.length);
+      console.log("🔍 === FILTER DEBUG END ===");
 
       // Update the source data
       const source = map.getSource("carlos-points") as maplibregl.GeoJSONSource;
@@ -677,7 +748,7 @@ const CarlosMockup = () => {
             marginBottom: "8px",
           }}
         >
-          <option value="">Todos los puntos</option>
+          <option value="">All Points</option>
           {uniqueTags.map((tag) => (
             <option key={tag} value={tag}>
               {tag}
@@ -689,16 +760,16 @@ const CarlosMockup = () => {
         <div style={{ fontSize: "11px", color: "#6b7280" }}>
           {selectedTag ? (
             <div>
-              📌 Mostrando solo: <strong>{selectedTag}</strong>
+              📌 Showing only: <strong>{selectedTag}</strong>
               <br />
               <span style={{ fontStyle: "italic" }}>
                 {processedPoints.filter((p) => p.tag === selectedTag).length}{" "}
-                puntos
+                points
               </span>
             </div>
           ) : (
             <div style={{ fontStyle: "italic" }}>
-              Mostrando todos los {uniqueTags.length} tags disponibles
+              Showing all {uniqueTags.length} available tags
             </div>
           )}
         </div>
