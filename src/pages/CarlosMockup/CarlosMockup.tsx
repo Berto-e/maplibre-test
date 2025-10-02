@@ -573,7 +573,9 @@ const CarlosMockup = () => {
       addPointLayers(map);
 
       console.log(
-        `✅ Map loaded with ${processedPoints.length} points (${rawPoints.length} original)`
+        `✅ Map loaded with ${processedPoints.length} points (${
+          (rawPoints as tPoint[]).length
+        } original)`
       );
     });
 
@@ -669,7 +671,7 @@ const CarlosMockup = () => {
           </div>
           <div>Zoom: {zoom}</div>
           <div>Filtered Points: {processedPoints.length}</div>
-          <div>Original Points: {rawPoints.length}</div>
+          <div>Original Points: {(rawPoints as tPoint[]).length}</div>
           <div
             style={{ marginTop: "4px", fontSize: "11px", fontStyle: "italic" }}
           >
