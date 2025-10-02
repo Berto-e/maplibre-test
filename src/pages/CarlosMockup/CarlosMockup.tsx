@@ -181,6 +181,31 @@ const CarlosMockup = () => {
     } catch {
       /* ignore */
     }
+    // remove plane layer/source/image if present
+    try {
+      if (map.getLayer("carlos-animated-plane-layer"))
+        map.removeLayer("carlos-animated-plane-layer");
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (map.getSource("carlos-animated-plane"))
+        map.removeSource("carlos-animated-plane");
+    } catch {
+      /* ignore */
+    }
+    try {
+      // remove image if map supports it
+      if ((map as any).hasImage && (map as any).hasImage("plane-icon")) {
+        try {
+          (map as any).removeImage("plane-icon");
+        } catch {
+          /* ignore */
+        }
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const startAnimation = useCallback(
@@ -249,6 +274,61 @@ const CarlosMockup = () => {
             "line-opacity": 0.95,
           },
         });
+
+        // add plane icon image (SVG) and a source/layer for the moving plane
+        try {
+          const svg = `<?xml version="1.0" encoding="UTF-8"?><svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'><path fill='%23ffffff' d='M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9L2 14v2l8-1v3l-2 1v1l3-0.5L14 20v-1l-2-1v-3l8 1z'/></svg>`;
+          const img = new Image();
+          img.src =
+            "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+          img.onload = () => {
+            try {
+              if (
+                (map as any).addImage &&
+                !(map as any).hasImage?.("plane-icon")
+              ) {
+                (map as any).addImage("plane-icon", img);
+              }
+            } catch {
+              /* ignore */
+            }
+          };
+        } catch {
+          /* ignore */
+        }
+
+        try {
+          if (!map.getSource("carlos-animated-plane")) {
+            const planeGeo = {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  geometry: { type: "Point", coordinates: [0, 0] },
+                  properties: { bearing: 0 },
+                },
+              ],
+            };
+            map.addSource("carlos-animated-plane", {
+              type: "geojson",
+              data: planeGeo as GeoJSON.FeatureCollection,
+            });
+            map.addLayer({
+              id: "carlos-animated-plane-layer",
+              type: "symbol",
+              source: "carlos-animated-plane",
+              layout: {
+                "icon-image": "plane-icon",
+                "icon-size": 0.7,
+                "icon-allow-overlap": true,
+                "icon-rotation-alignment": "map",
+                "icon-rotate": ["get", "bearing"],
+              },
+            });
+          }
+        } catch {
+          /* ignore */
+        }
       }
 
       const frame = () => {
@@ -297,6 +377,31 @@ const CarlosMockup = () => {
             animatedSourceId
           ) as maplibregl.GeoJSONSource;
           src.setData(geo as GeoJSON.FeatureCollection);
+        } catch {
+          /* ignore */
+        }
+
+        // update plane position and bearing
+        try {
+          const planeSrc = map.getSource("carlos-animated-plane") as
+            | maplibregl.GeoJSONSource
+            | undefined;
+          if (planeSrc) {
+            const dx = b[0] - a[0];
+            const dy = b[1] - a[1];
+            const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+            const planeGeo = {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  geometry: { type: "Point", coordinates: interp },
+                  properties: { bearing: angle },
+                },
+              ],
+            };
+            planeSrc.setData(planeGeo as GeoJSON.FeatureCollection);
+          }
         } catch {
           /* ignore */
         }
