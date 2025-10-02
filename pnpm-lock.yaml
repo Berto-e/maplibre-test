@@ -26,6 +26,9 @@ importers:
       '@types/leaflet.markercluster':
         specifier: ^1.5.5
         version: 1.5.6
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -968,6 +971,9 @@ packages:
 
   d3-geo@1.7.1:
     resolution: {integrity: sha512-O4AempWAr+P5qbk2bC2FuN/sDW4z+dN2wDf9QV3bxQt4M5HfOEeXLgJ/UKQW0+o1Dj8BE+L5kiDbdWUMjsmQpw==}
+
+  date-fns@4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -2761,6 +2767,8 @@ snapshots:
   d3-geo@1.7.1:
     dependencies:
       d3-array: 1.2.4
+
+  date-fns@4.1.0: {}
 
   debug@4.4.3:
     dependencies:

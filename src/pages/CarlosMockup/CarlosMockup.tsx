@@ -24,14 +24,16 @@ import React, {
   useState,
 } from "react";
 import maplibregl from "maplibre-gl";
+import { parse } from "date-fns";
 import "maplibre-gl/dist/maplibre-gl.css";
-import rawPoints from "../../utils/carlos.json";
+import rawPoints from "../../utils/raw_points.json";
 
 type tPoint = {
   "Entity Name": string | null;
   longitude: number | null;
   latitude: number | null;
   "GNSS accuracy": string | null;
+  Timestamp: string | null | Date;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -62,65 +64,39 @@ const CarlosMockup = () => {
 
   // Process and filter raw points data
   const processedPoints = useMemo(() => {
-    console.log("🔍 === DATA PROCESSING DEBUG START ===");
-    console.log("📊 Raw points count:", rawPoints.length);
-
-    // Sample some raw GNSS values for debugging
-    const sampleRawGnss = rawPoints.slice(0, 10).map((p) => ({
-      gnss: p["GNSS accuracy"],
-      type: typeof p["GNSS accuracy"],
-      isNull: p["GNSS accuracy"] === null,
-      isEmpty: p["GNSS accuracy"] === "",
-      value: p["GNSS accuracy"],
-    }));
-    console.log("📡 Sample raw GNSS values:", sampleRawGnss);
-
     // Convert objects to arrays and filter out invalid points
     const validPoints = (rawPoints as tPoint[])
-      .filter((p) => p.longitude !== 0 && p.latitude !== 0)
+      .filter(
+        (p) =>
+          p.longitude !== 0 &&
+          p.latitude !== 0 &&
+          p.Timestamp !== "" &&
+          p.Timestamp !== null
+      )
       .map((p, index) => ({
         id: index,
         coordinates: [p.longitude, p.latitude] as [number, number],
         longitude: p.longitude,
         latitude: p.latitude,
-
+        timestamp: p.Timestamp,
         gnss: p["GNSS accuracy"],
         tag: p["Entity Name"],
       }));
 
-    console.log(
-      "📊 Valid points count (after coordinate filter):",
-      validPoints.length
-    );
+    // Eliminate duplicates by longitude and latitude
+    const seen = new Set<string>();
+    const uniquePoints = validPoints.filter((point) => {
+      const key = `${point.longitude}-${point.latitude}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
-    // Remove duplicates based on coordinates
-    // const uniquePoints = validPoints.filter(
-    //   (point, index, self) =>
-    //     self.findIndex(
-    //       (p) =>
-    //         p.coordinates[0] === point.coordinates[0] &&
-    //         p.coordinates[1] === point.coordinates[1]
-    //     ) === index
-    // );
-
-    // console.log(
-    //   "📊 Unique points count (after duplicate removal):",
-    //   uniquePoints.length
-    // );
-
-    // Sample processed GNSS values
-    const sampleProcessedGnss = validPoints.slice(0, 10).map((p) => ({
-      gnss: p.gnss,
-      type: typeof p.gnss,
-      isNull: p.gnss === null,
-      isEmpty: p.gnss === "",
-      numberValue: Number(p.gnss),
-      isGreaterThanZero: Number(p.gnss) > 0,
+    // Reassign ids sequentially after deduplication
+    return uniquePoints.map((point, index) => ({
+      ...point,
+      id: index,
     }));
-    console.log("📡 Sample processed GNSS values:", sampleProcessedGnss);
-    console.log("🔍 === DATA PROCESSING DEBUG END ===");
-
-    return validPoints;
   }, []);
 
   // Get unique Entity Name tags from rawPoints (as tPoint)
@@ -157,8 +133,8 @@ const CarlosMockup = () => {
         },
         properties: {
           id: point.id,
-          pointNumber: point.id + 1, // For display numbering
           tag: point.tag, // Entity Name for filtering
+          timestamp: point.timestamp,
           gnss: point.gnss, // GNSS accuracy
         },
       })),
@@ -197,7 +173,7 @@ const CarlosMockup = () => {
           "step",
           ["get", "point_count"],
           "#3b82f6", // Blue for small clusters
-          100,
+          50,
           "#f59e0b", // Amber for medium clusters
           750,
           "#ef4444", // Red for large clusters
@@ -275,7 +251,7 @@ const CarlosMockup = () => {
             `
             <div style="max-width: 200px;">
               <h3 style="margin: 0 0 8px 0; color: #1f2937; font-size: 14px; font-weight: 600;">
-                📍 Point ${properties?.pointNumber || properties?.id || "N/A"}
+                📍 Point ${properties?.id || "N/A"}
               </h3>
               <div style="font-size: 12px; color: #6b7280; line-height: 1.4;">
                 <div><strong>Longitude:</strong> ${coordinates[0].toFixed(
@@ -410,7 +386,7 @@ const CarlosMockup = () => {
       source: "carlos-points",
       filter: ["!", ["has", "point_count"]],
       layout: {
-        "text-field": ["get", "pointNumber"],
+        "text-field": ["get", "id"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
         "text-size": [
           "interpolate",
@@ -479,73 +455,63 @@ const CarlosMockup = () => {
     ) => {
       if (!map.isStyleLoaded()) return;
 
-      console.log("🔍 === FILTER DEBUG START ===");
-      console.log("📊 Original features count:", geoJsonData.features.length);
-      console.log("🏷️ Tag filter:", tagFilter);
-      console.log("📡 GNSS > 0 filter:", gnssGreaterThanZero);
-      console.log("📡 GNSS not null filter:", gnssNotNull);
-
       // For clustering with filters, we need to update the source data
       // MapLibre clustering doesn't work well with layer-level filters
       let filteredFeatures = geoJsonData.features;
 
       // Apply tag filter
       if (tagFilter) {
-        const beforeCount = filteredFeatures.length;
         filteredFeatures = filteredFeatures.filter(
           (feature) => feature.properties.tag === tagFilter
         );
-        console.log(
-          `🏷️ After tag filter (${tagFilter}): ${beforeCount} → ${filteredFeatures.length}`
-        );
+
+        filteredFeatures.forEach((f) => {
+          f.properties.timestamp =
+            f.properties.timestamp instanceof Date
+              ? f.properties.timestamp
+              : parse(
+                  f.properties.timestamp as string,
+                  "M/d/yyyy H:mm",
+                  new Date()
+                );
+        });
+
+        // 2️⃣ Ordenamos por timestamp ascendente
+        filteredFeatures.sort((a, b) => {
+          const t1 = a.properties.timestamp as Date;
+          const t2 = b.properties.timestamp as Date;
+          return t1.getTime() - t2.getTime();
+        });
+
+        // 3️⃣ Reasignamos id de forma autoincremental según el orden
+        filteredFeatures.forEach((f, index) => {
+          f.properties.id = index; // comienza en 1
+        });
       }
 
       // Apply GNSS > 0 filter
       if (gnssGreaterThanZero) {
-        const beforeCount = filteredFeatures.length;
         filteredFeatures = filteredFeatures.filter((feature) => {
           const gnss = feature.properties.gnss;
           const isValid =
             gnss !== null && gnss !== undefined && Number(gnss) > 0;
           return isValid;
         });
-        console.log(
-          `📡 After GNSS > 0 filter: ${beforeCount} → ${filteredFeatures.length}`
-        );
-
-        // Sample some GNSS values for debugging
-        const sampleGnss = filteredFeatures
-          .slice(0, 5)
-          .map((f) => f.properties.gnss);
-        console.log("📡 Sample GNSS values (> 0):", sampleGnss);
       }
 
       // Apply GNSS not null filter
       if (gnssNotNull) {
-        const beforeCount = filteredFeatures.length;
         filteredFeatures = filteredFeatures.filter((feature) => {
           const gnss = feature.properties.gnss;
           const isNotNull = gnss !== null && gnss !== undefined && gnss !== "";
           return isNotNull;
         });
-        console.log(
-          `📡 After GNSS not null filter: ${beforeCount} → ${filteredFeatures.length}`
-        );
-
-        // Sample some GNSS values for debugging
-        const sampleGnss = filteredFeatures
-          .slice(0, 5)
-          .map((f) => f.properties.gnss);
-        console.log("📡 Sample GNSS values (not null):", sampleGnss);
       }
 
       const filteredData = {
         type: "FeatureCollection" as const,
         features: filteredFeatures,
       };
-
-      console.log("✅ Final filtered features count:", filteredFeatures.length);
-      console.log("🔍 === FILTER DEBUG END ===");
 
       // Update the source data
       const source = map.getSource("carlos-points") as maplibregl.GeoJSONSource;
@@ -595,8 +561,11 @@ const CarlosMockup = () => {
         type: "geojson",
         data: geoJsonData,
         cluster: true,
-        clusterMaxZoom: 11, // Max zoom to cluster points
-        clusterRadius: 50, // Radius of each cluster
+        // Increase clusterMaxZoom so clustering remains active at zoom 10
+        // and up to higher zoom levels. Also increase clusterRadius to
+        // group nearby points more aggressively.
+        clusterMaxZoom: 16, // Max zoom to cluster points (was 11)
+        clusterRadius: 80, // Radius of each cluster (was 50)
       });
 
       // Add all layers
