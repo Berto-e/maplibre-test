@@ -314,6 +314,17 @@ const CarlosMockup = () => {
     return () => stopAnimation();
   }, [stopAnimation]);
 
+  // If filters or selected tag change, stop any running animation so we don't
+  // animate a route that is no longer visible.
+  useEffect(() => {
+    stopAnimation();
+  }, [
+    selectedTag,
+    gnssGreaterThanZeroFilter,
+    gnssNotNullFilter,
+    stopAnimation,
+  ]);
+
   const zoom = 6;
   const apiKey = "W8q1pSL8KdnaMEh4wtdB";
   const mapStyle = `https://api.maptiler.com/maps/streets/style.json?key=${apiKey}`;
@@ -631,7 +642,7 @@ const CarlosMockup = () => {
 
       // For clustering with filters, we need to update the source data
       // MapLibre clustering doesn't work well with layer-level filters
-      let filteredFeatures = geoJsonData.features;
+      let filteredFeatures = (geoJsonData.features || []).slice();
 
       // Apply tag filter
       if (tagFilter) {
