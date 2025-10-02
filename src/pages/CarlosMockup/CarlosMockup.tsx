@@ -51,6 +51,8 @@ const CarlosMockup = () => {
     useState<boolean>(false);
   const [gnssNotNullFilter, setGnssNotNullFilter] = useState<boolean>(false);
 
+  // ...existing code...
+
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Data Processing & State
   ////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +123,8 @@ const CarlosMockup = () => {
     return [centerLng, centerLat];
   }, [processedPoints]);
 
+  // ...existing code...
+
   // Create GeoJSON data for MapLibre
   const geoJsonData = useMemo(() => {
     return {
@@ -145,6 +149,171 @@ const CarlosMockup = () => {
   // 📌 SECTION: Map Configuration
   ////////////////////////////////////////////////////////////////////////////////
 
+  // Animated path helpers (defined after geoJsonData)
+  // Animated path state (requestAnimationFrame)
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animFrameRef = useRef<number | null>(null);
+  const animSegmentRef = useRef<number>(0);
+  const animTRef = useRef<number>(0); // interpolation 0..1
+  const animCoordsRef = useRef<[number, number][]>([]);
+  const animSpeedRef = useRef<number>(0.02); // t increment per frame
+  const animatedSourceId = "carlos-animated-line";
+
+  const stopAnimation = useCallback(() => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    setIsAnimating(false);
+    animSegmentRef.current = 0;
+    animTRef.current = 0;
+    animCoordsRef.current = [];
+    // remove source/layer
+    const map = mapRef.current;
+    if (!map) return;
+    try {
+      if (map.getLayer(animatedSourceId)) map.removeLayer(animatedSourceId);
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (map.getSource(animatedSourceId)) map.removeSource(animatedSourceId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const startAnimation = useCallback(
+    (speed = 0.02) => {
+      const map = mapRef.current;
+      if (!map || !selectedTag) return;
+      stopAnimation();
+      animSpeedRef.current = speed;
+
+      // Build ordered coords for selected tag using the currently displayed
+      // features (respects filters applied via updateMapFilters)
+      const sourceFeatures =
+        displayedFeaturesRef.current && displayedFeaturesRef.current.length > 0
+          ? displayedFeaturesRef.current
+          : (geoJsonData.features as GeoJSON.Feature[]);
+
+      const pts = sourceFeatures
+        .filter(
+          (f) =>
+            f &&
+            f.properties &&
+            f.properties.tag === selectedTag &&
+            f.geometry?.type === "Point"
+        )
+        .slice()
+        .sort((a, b) => {
+          const ai = a && a.properties ? Number(a.properties.id ?? 0) : 0;
+          const bi = b && b.properties ? Number(b.properties.id ?? 0) : 0;
+          return ai - bi;
+        })
+        .map(
+          (f) => (f.geometry as GeoJSON.Point).coordinates as [number, number]
+        );
+
+      if (pts.length < 2) return;
+
+      animCoordsRef.current = pts;
+      animSegmentRef.current = 0;
+      animTRef.current = 0;
+      setIsAnimating(true);
+
+      // ensure source/layer exist
+      const emptyGeo = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: { type: "LineString", coordinates: [] },
+            properties: {},
+          },
+        ],
+      };
+      if (!map.getSource(animatedSourceId)) {
+        map.addSource(animatedSourceId, {
+          type: "geojson",
+          data: emptyGeo as GeoJSON.FeatureCollection,
+        });
+        map.addLayer({
+          id: animatedSourceId,
+          type: "line",
+          source: animatedSourceId,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: {
+            "line-color": "#ff0000",
+            "line-width": 3,
+            "line-opacity": 0.95,
+          },
+        });
+      }
+
+      const frame = () => {
+        const coords = animCoordsRef.current;
+        const seg = animSegmentRef.current;
+        const t = animTRef.current + animSpeedRef.current;
+        animTRef.current = t;
+        let segIndex = seg;
+        let frac = t;
+        if (t >= 1) {
+          // advance to next segment
+          animSegmentRef.current = seg + Math.floor(t);
+          animTRef.current = t - Math.floor(t);
+          segIndex = animSegmentRef.current;
+          frac = animTRef.current;
+        }
+
+        // clamp
+        if (segIndex >= coords.length - 1) {
+          // animation finished; stop
+          stopAnimation();
+          return;
+        }
+
+        const a = coords[segIndex];
+        const b = coords[segIndex + 1];
+        const interp = [
+          a[0] + (b[0] - a[0]) * frac,
+          a[1] + (b[1] - a[1]) * frac,
+        ] as [number, number];
+
+        // update source with line from start up to current interpolated point
+        const played = coords.slice(0, segIndex + 1).concat([interp]);
+        const geo = {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: { type: "LineString", coordinates: played },
+              properties: {},
+            },
+          ],
+        };
+        try {
+          const src = map.getSource(
+            animatedSourceId
+          ) as maplibregl.GeoJSONSource;
+          src.setData(geo as GeoJSON.FeatureCollection);
+        } catch {
+          /* ignore */
+        }
+
+        animFrameRef.current = requestAnimationFrame(frame);
+      };
+
+      animFrameRef.current = requestAnimationFrame(frame);
+    },
+    [geoJsonData, selectedTag, stopAnimation]
+  );
+
+  // cleanup animation on unmount
+  useEffect(() => {
+    return () => stopAnimation();
+  }, [stopAnimation]);
+
   const zoom = 6;
   const apiKey = "W8q1pSL8KdnaMEh4wtdB";
   const mapStyle = `https://api.maptiler.com/maps/streets/style.json?key=${apiKey}`;
@@ -155,6 +324,11 @@ const CarlosMockup = () => {
 
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  // Keep the currently-displayed (source) features so visualizations can
+  // reference exactly what is shown on the map (respects filters and setData).
+  const displayedFeaturesRef = useRef<GeoJSON.Feature[]>(
+    geoJsonData.features as GeoJSON.Feature[]
+  );
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Map Layer Functions
@@ -465,6 +639,27 @@ const CarlosMockup = () => {
           (feature) => feature.properties.tag === tagFilter
         );
 
+        // Apply GNSS > 0 filter (if requested) before ordering/rewiring ids
+        if (gnssGreaterThanZero) {
+          filteredFeatures = filteredFeatures.filter((feature) => {
+            const gnss = feature.properties.gnss;
+            const isValid =
+              gnss !== null && gnss !== undefined && Number(gnss) > 0;
+            return isValid;
+          });
+        }
+
+        // Apply GNSS not null filter (if requested)
+        if (gnssNotNull) {
+          filteredFeatures = filteredFeatures.filter((feature) => {
+            const gnss = feature.properties.gnss;
+            const isNotNull =
+              gnss !== null && gnss !== undefined && gnss !== "";
+            return isNotNull;
+          });
+        }
+
+        // Now parse timestamps and sort/reassign ids according to the visible set
         filteredFeatures.forEach((f) => {
           f.properties.timestamp =
             f.properties.timestamp instanceof Date
@@ -485,38 +680,66 @@ const CarlosMockup = () => {
 
         // 3️⃣ Reasignamos id de forma autoincremental según el orden
         filteredFeatures.forEach((f, index) => {
-          f.properties.id = index; // comienza en 1
+          f.properties.id = index; // comienza en 0
         });
-      }
 
-      // Apply GNSS > 0 filter
-      if (gnssGreaterThanZero) {
-        filteredFeatures = filteredFeatures.filter((feature) => {
-          const gnss = feature.properties.gnss;
-          const isValid =
-            gnss !== null && gnss !== undefined && Number(gnss) > 0;
-          return isValid;
-        });
-      }
+        const filteredData = {
+          type: "FeatureCollection" as const,
+          features: filteredFeatures,
+        };
 
-      // Apply GNSS not null filter
-      if (gnssNotNull) {
-        filteredFeatures = filteredFeatures.filter((feature) => {
-          const gnss = feature.properties.gnss;
-          const isNotNull = gnss !== null && gnss !== undefined && gnss !== "";
-          return isNotNull;
-        });
-      }
+        // Update the source data and track displayed features
+        const source = map.getSource(
+          "carlos-points"
+        ) as maplibregl.GeoJSONSource;
+        if (source) {
+          try {
+            displayedFeaturesRef.current = filteredFeatures.slice();
+          } catch {
+            displayedFeaturesRef.current =
+              filteredFeatures as GeoJSON.Feature[];
+          }
+          source.setData(filteredData);
+        }
+      } else {
+        // Apply GNSS > 0 filter
+        if (gnssGreaterThanZero) {
+          filteredFeatures = filteredFeatures.filter((feature) => {
+            const gnss = feature.properties.gnss;
+            const isValid =
+              gnss !== null && gnss !== undefined && Number(gnss) > 0;
+            return isValid;
+          });
+        }
 
-      const filteredData = {
-        type: "FeatureCollection" as const,
-        features: filteredFeatures,
-      };
+        // Apply GNSS not null filter
+        if (gnssNotNull) {
+          filteredFeatures = filteredFeatures.filter((feature) => {
+            const gnss = feature.properties.gnss;
+            const isNotNull =
+              gnss !== null && gnss !== undefined && gnss !== "";
+            return isNotNull;
+          });
+        }
 
-      // Update the source data
-      const source = map.getSource("carlos-points") as maplibregl.GeoJSONSource;
-      if (source) {
-        source.setData(filteredData);
+        const filteredData = {
+          type: "FeatureCollection" as const,
+          features: filteredFeatures,
+        };
+
+        // Update the source data and track displayed features
+        const source = map.getSource(
+          "carlos-points"
+        ) as maplibregl.GeoJSONSource;
+        if (source) {
+          try {
+            displayedFeaturesRef.current = filteredFeatures.slice();
+          } catch {
+            displayedFeaturesRef.current =
+              filteredFeatures as GeoJSON.Feature[];
+          }
+          source.setData(filteredData);
+        }
       }
     },
     [geoJsonData]
@@ -567,6 +790,15 @@ const CarlosMockup = () => {
         clusterMaxZoom: 16, // Max zoom to cluster points (was 11)
         clusterRadius: 80, // Radius of each cluster (was 50)
       });
+
+      // initialize displayed features ref to the initial source data
+      try {
+        displayedFeaturesRef.current = (
+          geoJsonData.features as GeoJSON.Feature[]
+        ).slice();
+      } catch {
+        displayedFeaturesRef.current = [];
+      }
 
       // Add all layers
       addClusterLayers(map);
@@ -727,6 +959,43 @@ const CarlosMockup = () => {
           ))}
         </select>
 
+        {/* Animation Controls for selected tag */}
+        {selectedTag && (
+          <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
+            <button
+              onClick={() => {
+                if (isAnimating) stopAnimation();
+                else startAnimation(0.02);
+              }}
+              style={{
+                background: isAnimating ? "#ef4444" : "#3b82f6",
+                color: "white",
+                border: "none",
+                padding: "6px 10px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+            >
+              {isAnimating ? "Stop tour" : "Animate tag"}
+            </button>
+            <button
+              onClick={() => startAnimation(0.05)}
+              style={{
+                background: "#10b981",
+                color: "white",
+                border: "none",
+                padding: "6px 10px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "12px",
+              }}
+            >
+              Play fast
+            </button>
+          </div>
+        )}
+
         {/* Filter Info */}
         <div style={{ fontSize: "11px", color: "#6b7280" }}>
           {selectedTag ? (
@@ -748,7 +1017,7 @@ const CarlosMockup = () => {
       <div
         style={{
           position: "absolute",
-          top: "260px",
+          top: "300px",
           left: "10px",
           background: "rgba(255, 255, 255, 0.95)",
           padding: "12px 16px",
