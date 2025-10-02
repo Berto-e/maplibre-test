@@ -432,7 +432,7 @@ const CarlosMockup = () => {
 
   const zoom = 6;
   const apiKey = "W8q1pSL8KdnaMEh4wtdB";
-  const mapStyle = `https://api.maptiler.com/maps/streets/style.json?key=${apiKey}`;
+  const mapStyle = `https://api.maptiler.com/maps/bright/style.json?key=${apiKey}`;
 
   ////////////////////////////////////////////////////////////////////////////////
   // 📌 SECTION: Refs
