@@ -1,8 +1,7 @@
-import CarlosMockup from "./pages/CarlosMockup/CarlosMockup";
 const App = () => {
   return (
     <>
-      <CarlosMockup />
+      <h1>App</h1>
     </>
   );
 };
